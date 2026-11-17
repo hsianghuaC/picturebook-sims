@@ -1,0 +1,1616 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>繪本感官互動提案｜互動模擬</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#3B3530; --quiet:#857A70; --cream:#FFF7EA;
+  --red:#EF5B5B; --pink:#FF8FB1; --orange:#FF9F45; --yellow:#FFC93C;
+  --green:#4CBF8A; --teal:#2BB3C0; --blue:#4A86E8; --purple:#9B7BE0;
+  --hand:'LXGW WenKai TC','PingFang TC','Microsoft JhengHei',sans-serif;
+  --sans:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#FFF3E2;color:var(--ink);font-family:var(--sans);
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;transition:background .4s}
+#viewport{position:fixed;inset:0;overflow:hidden;touch-action:none}
+#stage{position:absolute;left:0;top:0;width:1200px;height:750px;transform-origin:0 0}
+#cv{position:absolute;left:0;top:0;width:1200px;height:750px;touch-action:none}
+#grain{position:absolute;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:multiply}
+.simui{position:absolute;inset:0;pointer-events:none}
+.simui[hidden]{display:none}
+.side{position:absolute;top:78px;width:232px}
+.side.left{left:30px}.side.right{right:26px}
+.tag{display:inline-block;font:700 14px/1 var(--sans);color:#fff;padding:7px 12px 6px;border-radius:99px;letter-spacing:.08em}
+.side h1{font:700 40px/1.15 var(--hand);margin:14px 0 4px;letter-spacing:.04em}
+.side .from{font-size:15px;color:var(--quiet);margin:0 0 22px}
+.steps{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.steps li{display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:center;font-size:16px;line-height:1.45}
+.steps b{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 19px var(--hand)}
+.side h3{font:700 19px/1.3 var(--hand);margin:0 0 10px}
+.tier{background:#fff;border-radius:16px;padding:10px 12px;margin-bottom:9px;box-shadow:0 2px 0 rgba(90,60,30,.08)}
+.tier b{font:700 17px var(--hand);display:block}
+.tier small{font-size:14px;color:var(--quiet);line-height:1.4;display:block;margin-top:2px}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.legend div{display:flex;align-items:center;gap:6px;font-size:14.5px;background:#fff;border-radius:12px;padding:6px 8px}
+.legend svg{flex:none}
+/* fixed toolbar (not scaled) */
+#bar{position:fixed;top:10px;right:10px;display:flex;gap:8px;z-index:20}
+#bar button,#back{border:0;cursor:pointer;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.92);
+  box-shadow:0 2px 8px rgba(60,40,20,.18);display:grid;place-items:center;color:var(--ink);padding:0}
+#bar button:active,#back:active{transform:scale(.94)}
+#bar svg,#back svg{width:22px;height:22px}
+#back{position:fixed;top:10px;left:10px;z-index:20;width:auto;padding:0 16px 0 12px;border-radius:99px;
+  font:500 15px var(--sans);display:flex;gap:6px;align-items:center}
+#hint{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:20;background:rgba(255,255,255,.92);
+  border-radius:99px;padding:7px 16px;font:500 14px/1.3 var(--sans);box-shadow:0 2px 8px rgba(60,40,20,.15);
+  white-space:nowrap;max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.dark #hint,.dark #bar button,.dark #back{background:rgba(48,46,60,.92);color:#F4EBDD}
+#hint:empty{display:none}
+/* landing */
+#home{position:fixed;inset:0;overflow:auto;background:#FFF6E8;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:32px 20px;z-index:30}
+#home[hidden]{display:none}
+#home h1{font:700 clamp(28px,4.4vw,46px)/1.2 var(--hand);margin:0 0 6px;text-align:center}
+#home p{color:var(--quiet);margin:0 0 30px;text-align:center}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,300px));gap:22px;justify-content:center;width:100%}
+.card{display:block;text-decoration:none;color:inherit;background:#fff;border-radius:28px;padding:22px;box-shadow:0 6px 0 rgba(90,60,30,.08);
+  transition:transform .2s}
+.card:hover{transform:translateY(-4px) rotate(-.5deg)}
+.card .pic{height:150px;border-radius:20px;display:grid;place-items:center;margin-bottom:16px;overflow:hidden}
+.card h2{font:700 26px var(--hand);margin:0 0 4px}
+.card span{font-size:14px;color:var(--quiet)}
+/* start overlay (umbrella) */
+.overlay{position:absolute;inset:0;display:grid;place-items:center;pointer-events:auto;cursor:pointer}
+.overlay[hidden]{display:none}
+.overlay .bubble{background:rgba(255,248,236,.96);color:var(--ink);border-radius:30px;padding:26px 36px;text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.overlay .bubble b{display:block;font:700 30px var(--hand);margin:8px 0 6px}
+.overlay .bubble span{font-size:16px;color:var(--quiet)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:-8px}
+.chips span{background:#fff;border-radius:99px;padding:6px 13px;font-size:15px;box-shadow:0 2px 0 rgba(60,90,130,.08)}
+.say{position:absolute;left:790px;top:150px;background:#fff;border-radius:22px;padding:12px 20px;font:700 22px var(--hand);
+  box-shadow:0 4px 0 rgba(60,90,130,.12);white-space:nowrap}
+.say::after{content:"";position:absolute;left:-12px;bottom:14px;border:10px solid transparent;border-right:14px solid #fff;border-left:0}
+.say[hidden]{display:none}
+.um h1,.um .from{color:#F4EBDD}.um .from{opacity:.75}
+#umStatus{position:absolute;left:50%;top:20px;transform:translateX(-50%);background:rgba(255,248,236,.95);border-radius:22px;
+  padding:12px 22px 12px 18px;display:flex;align-items:center;gap:12px;max-width:640px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+#umStatus i{flex:none;width:14px;height:14px;border-radius:50%;background:#FFC93C;box-shadow:0 0 0 5px rgba(255,201,60,.3)}
+#umStatus b{font:700 21px var(--hand);white-space:nowrap}
+#umStatus span{font-size:15px;color:#6A5F55;line-height:1.4}
+#umStatus:empty{display:none}
+.embed .side{display:none}
+.clean #bar,.clean #hint,.clean #back{display:none!important}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="grain"></div>
+
+    <!-- ===== 彩色池塘 UI ===== -->
+    <div class="simui" id="ui-pond" hidden>
+      <div class="side left">
+        <span class="tag" style="background:#2BB3C0">手＋眼</span>
+        <h1>彩色池塘</h1>
+        <p class="from">延伸自繪本《小金魚逃走了》</p>
+        <ol class="steps">
+          <li><b style="background:#D8457A">拖</b>從池畔拿一塊部件，放到水面上</li>
+          <li><b style="background:#4FAA5C">點</b>點一下水面上的部件，可以轉方向</li>
+          <li><b style="background:#4A8FC8">摸</b>摸摸水面，碰碰小金魚</li>
+          <li><b style="background:#EBC03F">收</b>把部件拖回池畔，夥伴會慢慢游走</li>
+        </ol>
+      </div>
+      <div class="side right">
+        <h3>同色的夥伴會游過來</h3>
+        <div class="tier"><b>1 塊</b><small>一圈粒子＋1–2 隻小生物</small></div>
+        <div class="tier"><b>2–3 塊</b><small>粒子更密＋一小群夥伴</small></div>
+        <div class="tier"><b>4 塊以上</b><small>再來一隻同色大夥伴</small></div>
+        <h3 style="margin-top:16px">四種顏色的夥伴</h3>
+        <div class="legend">
+          <div><svg width="30" height="22" viewBox="-17 -11 40 22"><path d="M10 0L22 -9L22 9Z" fill="#D8457A"/><ellipse rx="14" ry="8.5" fill="#D8457A"/><circle cx="-7" cy="-2" r="2.4" fill="#fff"/></svg>小魚</div>
+          <div><svg width="30" height="24" viewBox="-17 -14 38 28"><circle cx="15" cy="0" r="5.5" fill="#4FAA5C"/><ellipse cx="-8" cy="-9" rx="4" ry="3" fill="#4FAA5C"/><ellipse cx="-8" cy="9" rx="4" ry="3" fill="#4FAA5C"/><ellipse cx="7" cy="-9" rx="4" ry="3" fill="#4FAA5C"/><ellipse cx="7" cy="9" rx="4" ry="3" fill="#4FAA5C"/><ellipse rx="13" ry="10" fill="#4FAA5C"/><path d="M-6 0h12M0 -6v12" stroke="#fff" stroke-width="1.6" opacity=".7"/></svg>烏龜</div>
+          <div><svg width="26" height="28" viewBox="-14 -13 28 40"><path d="M-12 0A12 12 0 0 1 12 0Z" fill="#4A8FC8"/><path d="M-6 2q3 6 0 12q-3 6 0 10M0 2q3 6 0 12q-3 6 0 10M6 2q3 6 0 12q-3 6 0 10" fill="none" stroke="#4A8FC8" stroke-width="2.6" stroke-linecap="round"/></svg>水母</div>
+          <div><svg width="30" height="24" viewBox="-22 -15 37 28"><ellipse cx="0" cy="3" rx="13" ry="9" fill="#EBC03F"/><circle cx="-9" cy="-7" r="7" fill="#EBC03F"/><path d="M-15 -7l-6 2l6 2z" fill="#D9962A"/><circle cx="-10" cy="-8.5" r="1.6" fill="#2E2A28"/></svg>小鴨</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 互動合唱牆 UI ===== -->
+    <div class="simui" id="ui-penguin" hidden>
+      <div class="side left" style="width:470px;left:64px">
+        <span class="tag" style="background:#4A86E8">手＋耳</span>
+        <h1>互動合唱牆</h1>
+        <p class="from">延伸自繪本《企鵝演奏會》</p>
+        <div class="chips"><span>拍企鵝的肚子或背</span><span>左邊按鈕換音色</span><span>點保育員，跟著唱</span><span>找到愛心企鵝</span></div>
+      </div>
+      <div id="pgBubble" class="say" hidden></div>
+    </div>
+
+    <!-- ===== 聽雨傘 UI ===== -->
+    <div class="simui" id="ui-umbrella" hidden>
+      <div class="side left um" style="width:300px;left:40px">
+        <span class="tag" style="background:#EF5B5B">耳＋腳</span>
+        <h1>聽雨傘</h1>
+        <p class="from">延伸自繪本《爸爸的紅雨傘》</p>
+      </div>
+      <div id="umStatus"></div>
+      <div id="umStart" class="overlay"><div class="bubble">
+        <svg width="64" height="56" viewBox="0 0 64 56" fill="none" stroke="#EF5B5B" stroke-width="5" stroke-linecap="round"><path d="M8 34V30a24 24 0 0 1 48 0v4"/><rect x="5" y="32" width="12" height="20" rx="5" fill="#EF5B5B"/><rect x="47" y="32" width="12" height="20" rx="5" fill="#EF5B5B"/></svg>
+        <b>戴上耳機，點一下開始聽雨</b><span>把小朋友拖到傘下，聽聽每把傘的雨有什麼不一樣</span></div></div>
+    </div>
+  </div>
+</div>
+
+<button id="back" hidden title="回到作品列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>三件作品</button>
+<div id="bar">
+  <button id="bReset" title="重新開始"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v5h5"/></svg></button>
+  <button id="bSound" title="聲音開關"></button>
+  <button id="bFull" title="全螢幕"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</div>
+<div id="hint"></div>
+
+<div id="home" hidden>
+  <h1>繪本感官互動提案｜互動模擬</h1>
+  <p>三本繪本，三種感官。點一件作品開始玩。</p>
+  <div class="cards">
+    <a class="card" href="#pond">
+      <div class="pic" style="background:#E3F4F1"><svg width="220" height="130" viewBox="0 0 220 130"><circle cx="110" cy="65" r="60" fill="#E7C08F"/><circle cx="110" cy="65" r="46" fill="#F3FBF8"/><path d="M92 60A12 12 0 0 1 116 60Z" fill="#D8457A" stroke="#fff" stroke-width="2"/><path d="M118 58L128 50L128 66Z" fill="#D8457A"/><g fill="#D8457A" opacity=".55"><circle cx="80" cy="45" r="2.5"/><circle cx="140" cy="44" r="2.5"/><circle cx="76" cy="75" r="2.5"/><circle cx="142" cy="80" r="2.5"/><circle cx="108" cy="92" r="2.5"/></g><g transform="translate(140 90) scale(.6)"><path d="M10 0L22 -9L22 9Z" fill="#D8457A"/><ellipse rx="14" ry="8.5" fill="#D8457A"/></g><g transform="translate(86 92) scale(.7)"><path d="M10 0C18 -12 30 -14 30 -4C26 -2 26 2 30 4C30 14 18 12 10 0Z" fill="#E8743B"/><ellipse rx="15" ry="10" fill="#E8743B"/></g></svg></div>
+      <h2>彩色池塘</h2><span>《小金魚逃走了》｜手＋眼</span>
+    </a>
+    <a class="card" href="#penguin">
+      <div class="pic" style="background:#DCEFFB"><svg width="220" height="130" viewBox="0 0 220 130"><g id="pg"><ellipse cx="0" cy="0" rx="22" ry="34" fill="#2B2B33"/><ellipse cx="0" cy="6" rx="15" ry="22" fill="#fff"/><circle cx="-6" cy="-16" r="2.4" fill="#2B2B33"/><circle cx="6" cy="-16" r="2.4" fill="#2B2B33"/><path d="M-4 -10h8l-4 5z" fill="#FF9F45"/></g><use href="#pg" x="60" y="70"/><g transform="translate(110 58)"><ellipse rx="21" ry="33" fill="#2B2B33"/></g><use href="#pg" x="160" y="70"/><g fill="#EF5B5B"><circle cx="54" cy="22" r="5"/><rect x="58" y="6" width="2.5" height="17"/></g><g fill="#4A86E8"><circle cx="168" cy="20" r="5"/><rect x="172" y="4" width="2.5" height="17"/></g></svg></div>
+      <h2>互動合唱牆</h2><span>《企鵝演奏會》｜手＋耳</span>
+    </a>
+    <a class="card" href="#umbrella">
+      <div class="pic" style="background:#34323F"><svg width="220" height="130" viewBox="0 0 220 130"><path d="M110 0V28" stroke="#888" stroke-width="1.5"/><path d="M70 50A40 26 0 0 1 150 50Q110 60 70 50Z" fill="#D93A2F"/><path d="M96 55L82 118H138L124 55Z" fill="#FFE9B0" opacity=".18"/><ellipse cx="110" cy="118" rx="30" ry="8" fill="#FFE2A0" opacity=".55"/><g stroke="#cfe2ff" stroke-width="1.6" opacity=".8"><path d="M98 66l-2 8M110 72l-2 8M120 64l-2 8M104 88l-2 8M116 92l-2 8"/></g><path d="M30 40A24 15 0 0 1 78 40Q54 46 30 40Z" fill="#7E9A57" opacity=".85"/><path d="M146 36A24 15 0 0 1 194 36Q170 42 146 36Z" fill="#4D8DB5" opacity=".85"/></svg></div>
+      <h2>聽雨傘</h2><span>《爸爸的紅雨傘》｜耳＋腳</span>
+    </a>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================================================================
+   共用框架：舞台縮放、指標事件、聲音
+   ================================================================ */
+const W = 1200, H = 750, TAU = Math.PI * 2;
+const QS = new URLSearchParams(location.search);
+const EMBED = QS.has('embed') || window.self !== window.top;
+const DEMO = QS.has('demo');
+const $ = s => document.querySelector(s);
+const stage = $('#stage'), canvas = $('#cv'), ctx = canvas.getContext('2d');
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const hyp = Math.hypot;
+let current = null, SCALE = 1, BK = 1;   // BK = backing pixels per logical px
+if (EMBED) document.body.classList.add('embed');
+if (QS.has('clean')) document.body.classList.add('clean');
+
+function fit() {
+  const vw = innerWidth, vh = innerHeight;
+  const vb = (EMBED && current && current.embedView) || { x: 0, y: 0, w: W, h: H };
+  SCALE = Math.min(vw / vb.w, vh / vb.h);
+  const tx = (vw - vb.w * SCALE) / 2 - vb.x * SCALE, ty = (vh - vb.h * SCALE) / 2 - vb.y * SCALE;
+  stage.style.transform = `translate(${tx}px,${ty}px) scale(${SCALE})`;
+  const dpr = window.devicePixelRatio || 1;
+  BK = Math.min(SCALE * dpr, 2.2);
+  canvas.width = Math.round(W * BK); canvas.height = Math.round(H * BK);
+  ctx.setTransform(BK, 0, 0, BK, 0, 0);
+  if (current && current.resize) current.resize();
+}
+function layer(w = W, h = H) {        // offscreen canvas at backing resolution
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * BK)); c.height = Math.max(1, Math.round(h * BK));
+  const g = c.getContext('2d'); g.setTransform(BK, 0, 0, BK, 0, 0);
+  return { c, g, w, h };
+}
+(function makeGrain() {
+  const c = document.createElement('canvas'); c.width = c.height = 180;
+  const g = c.getContext('2d'), d = g.createImageData(180, 180);
+  for (let i = 0; i < d.data.length; i += 4) { const v = 120 + Math.random() * 135; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  g.putImageData(d, 0, 0);
+  $('#grain').style.backgroundImage = `url(${c.toDataURL()})`;
+})();
+
+function toLogical(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+}
+canvas.addEventListener('pointerdown', e => {
+  AU.ensure();
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+  current && current.down && current.down(toLogical(e), e);
+  e.preventDefault();
+});
+canvas.addEventListener('pointermove', e => { current && current.move && current.move(toLogical(e), e); });
+const upH = e => { current && current.up && current.up(toLogical(e), e); };
+canvas.addEventListener('pointerup', upH);
+canvas.addEventListener('pointercancel', upH);
+addEventListener('keydown', e => { AU.ensure(); current && current.key && current.key(e); });
+
+/* ---------- 聲音 ---------- */
+const AU = {
+  ctx: null, master: null, on: true, listeners: [],
+  ensure() {
+    if (!this.ctx) {
+      const C = window.AudioContext || window.webkitAudioContext; if (!C) return null;
+      const c = this.ctx = new C();
+      this.master = c.createGain(); this.master.gain.value = this.on ? 0.9 : 0;
+      const comp = c.createDynamicsCompressor();
+      comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.25;
+      this.master.connect(comp); comp.connect(c.destination);
+      this.analyser = c.createAnalyser(); this.analyser.fftSize = 512; this.analyser.smoothingTimeConstant = 0.7;
+      comp.connect(this.analyser);
+      this.white = noiseBuf(c, 'white'); this.pink = noiseBuf(c, 'pink'); this.brown = noiseBuf(c, 'brown');
+      if (current && current.audioStart) current.audioStart();
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    return this.ctx;
+  },
+  get t() { return this.ctx ? this.ctx.currentTime : 0; },
+  setOn(v) { this.on = v; if (this.master) this.master.gain.setTargetAtTime(v ? 0.9 : 0, this.ctx.currentTime, 0.05); drawSoundIcon(); },
+  bus(gain = 1) { const g = this.ctx.createGain(); g.gain.value = gain; g.connect(this.master); return g; },
+  closeBus(b) { if (!b) return; try { b.gain.setTargetAtTime(0, this.ctx.currentTime, 0.12); setTimeout(() => b.disconnect(), 900); } catch (_) {} }
+};
+function noiseBuf(c, type) {
+  const len = c.sampleRate * 3, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
+  for (let i = 0; i < len; i++) {
+    const w = Math.random() * 2 - 1;
+    if (type === 'white') d[i] = w;
+    else if (type === 'pink') {
+      b0 = .99886 * b0 + w * .0555179; b1 = .99332 * b1 + w * .0750759; b2 = .969 * b2 + w * .153852;
+      b3 = .8665 * b3 + w * .3104856; b4 = .55 * b4 + w * .5329522; b5 = -.7616 * b5 - w * .016898;
+      d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * .5362) * .11; b6 = w * .115926;
+    } else { last = (last + .02 * w) / 1.02; d[i] = last * 3.5; }
+  }
+  return b;
+}
+function panNode(dest, pan) {
+  const c = AU.ctx;
+  if (!pan || !c.createStereoPanner) return dest;
+  const p = c.createStereoPanner(); p.pan.value = clamp(pan, -1, 1); p.connect(dest); return p;
+}
+// 短促噪音（雨滴、敲擊）
+function hit(dest, t, o) {
+  const c = AU.ctx, src = c.createBufferSource(); src.buffer = AU[o.noise || 'white'];
+  const f = c.createBiquadFilter(); f.type = o.ft || 'bandpass'; f.frequency.value = o.f || 1000; f.Q.value = o.q || 1;
+  const g = c.createGain(), a = o.a || 0.002, d = o.d || 0.05;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(o.g || 0.2, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+  src.connect(f); f.connect(g); g.connect(panNode(dest, o.pan));
+  src.start(t, Math.random() * 2.5); src.stop(t + a + d + 0.05);
+}
+// 單音
+function tone(dest, t, o) {
+  const c = AU.ctx, osc = c.createOscillator(); osc.type = o.type || 'sine';
+  osc.frequency.setValueAtTime(o.f, t);
+  if (o.f2) osc.frequency.exponentialRampToValueAtTime(o.f2, t + (o.glide || 0.05));
+  const g = c.createGain(), a = o.a || 0.004, d = o.d || 0.3;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(o.g || 0.2, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+  let n = osc;
+  if (o.lp) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; osc.connect(f); n = f; }
+  n.connect(g); g.connect(panNode(dest, o.pan));
+  osc.start(t); osc.stop(t + a + d + 0.05);
+  return osc;
+}
+// 持續的噪音底
+function bed(dest, o) {
+  const c = AU.ctx, s = c.createBufferSource(); s.buffer = AU[o.noise || 'brown']; s.loop = true;
+  const f = c.createBiquadFilter(); f.type = o.ft || 'lowpass'; f.frequency.value = o.f || 500; f.Q.value = o.q || 0.7;
+  const g = c.createGain(); g.gain.value = o.g || 0.05;
+  s.connect(f); f.connect(g); g.connect(dest); s.start(0, Math.random() * 2.5);
+  return { s, f, g, stop() { try { s.stop(); } catch (_) {} } };
+}
+function lfo(param, hz, depth) {
+  const c = AU.ctx, o = c.createOscillator(), g = c.createGain();
+  o.frequency.value = hz; g.gain.value = depth; o.connect(g); g.connect(param); o.start();
+  return o;
+}
+
+/* ---------- 工具列 ---------- */
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+function drawSoundIcon() { $('#bSound').innerHTML = AU.on ? ICON_ON : ICON_OFF; }
+drawSoundIcon();
+$('#bSound').onclick = () => { AU.ensure(); AU.setOn(!AU.on); };
+$('#bReset').onclick = () => { AU.ensure(); current && current.reset && current.reset(); };
+$('#bFull').onclick = () => {
+  const d = document;
+  if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+  else { const el = d.documentElement; const f = el.requestFullscreen || el.webkitRequestFullscreen; f && f.call(el).catch && f.call(el).catch(() => {}); }
+};
+$('#back').onclick = () => { location.hash = ''; };
+function setHint(s) { $('#hint').textContent = EMBED ? s : ''; }
+
+/* ================================================================
+   彩色池塘
+   ================================================================ */
+const POND = (() => {
+  const CX = 600, CY = 380, ROUT = 344, RW = 264, K = 5.28;   // K：每公分幾 px（水面直徑 100 公分）
+  const RIM_R = (RW + ROUT) / 2 + 2;
+  const COL = ['#D8457A', '#4FAA5C', '#4A8FC8', '#EBC03F'];
+  const PUPIL = '#2E2A28', GOLD = '#E8743B';
+  const ui = $('#ui-pond');
+
+  /* ---- 部件造型（單位：公分，以重心為原點）---- */
+  const SH = (() => {
+    const mk = (d, ox, oy) => { const p = new Path2D(); p.addPath(new Path2D(d), new DOMMatrix().scale(K).translate(ox, oy)); return p; };
+    const eye = (g, x, y, r) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); g.fillStyle = PUPIL; g.beginPath(); g.arc(x + r * .1, y, r * .52, 0, TAU); g.fill(); };
+    const line = (g, x1, y1, x2, y2, w) => { g.strokeStyle = '#fff'; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+    const L = 12, Hh = 6, a = L / 2, s = Hh / 2, r = (a * a + s * s) / (2 * s);
+    const ro = (36 + 5.4 * 5.4) / 10.8, ri = (36 + 1.4 * 1.4) / 2.8;
+    const th = Math.asin(2.5 / 5.5), dpx = 2.5 * Math.cos(th), dpy = -2.5 * Math.sin(th);
+    const list = [
+      { name: '葉形', d: `M${-a} 0A${r} ${r} 0 0 1 ${a} 0A${r} ${r} 0 0 1 ${-a} 0Z`, ox: 0, oy: 0, br: 6,
+        disks: [[-3.3, 0, 1.8], [0, 0, 2.9], [3.3, 0, 1.8]],
+        deco(g) { for (const fx of [.02, .16, .3]) { const x = fx * L, hh = (Math.sqrt(r * r - x * x) - (r - s)) * .62; line(g, x, -hh, x, hh, L * .045); } eye(g, -a * .55, -Hh * .06, Hh * .13); } },
+      { name: '半圓', d: 'M-6 0A6 6 0 0 1 6 0Z', ox: 0, oy: 2.546, br: 6,
+        disks: [[0, .5, 3], [-3.6, 1.5, 1.4], [3.6, 1.5, 1.4], [0, -2.2, 1.5]],
+        deco(g, c) { if (c === 0 || c === 3) eye(g, -2.52, -2.7, .9); else { eye(g, -1.8, -2.52, .78); eye(g, 1.8, -2.52, .78); } } },
+      { name: '月牙', d: `M-6 0A${ro} ${ro} 0 0 0 6 0A${ri} ${ri} 0 0 1 -6 0Z`, ox: 0, oy: -2.6, br: 6.4,
+        disks: [[0, 2, 1.9], [-3.7, 1, 1.5], [3.7, 1, 1.5], [-5.4, -1.9, .7], [5.4, -1.9, .7]], deco() {} },
+      { name: '四分之一圓', d: 'M0 0L0 -7A7 7 0 0 1 7 0Z', ox: -2.97, oy: 2.97, br: 5.2,
+        disks: [[0, 0, 2.7], [-2, -2.6, 1.3], [2.6, 2, 1.3], [-2.2, 2.2, .9], [1.6, -1.6, 1.6]],
+        deco(g) { for (const ang of [-70, -45, -20]) { const t = ang * Math.PI / 180; line(g, 2.24 * Math.cos(t), 2.24 * Math.sin(t), 5.46 * Math.cos(t), 5.46 * Math.sin(t), .49); } } },
+      { name: '小圓', d: 'M-2.5 0A2.5 2.5 0 1 1 2.5 0A2.5 2.5 0 1 1 -2.5 0Z', ox: 0, oy: 0, br: 2.5, disks: [[0, 0, 2.5]], deco() {} },
+      { name: '水滴', d: `M0 -5.5L${dpx} ${dpy}A2.5 2.5 0 1 1 ${-dpx} ${dpy}Z`, ox: 0, oy: .9, br: 4.7,
+        disks: [[0, .9, 2.5], [0, -2.4, 1.3], [0, -3.9, .6]],
+        deco(g) { line(g, 0, -2.475, 0, .875, .45); } }
+    ];
+    for (const sh of list) sh.path = mk(sh.d, sh.ox, sh.oy);
+    return list;
+  })();
+  const hitCtx = document.createElement('canvas').getContext('2d');
+
+  function drawPiece(g, p, opts = {}) {
+    const sh = SH[p.t], lift = p.lift || 0, sc = (p.sc || 1) * (1 + lift * .07);
+    g.save(); g.translate(p.x, p.y); g.rotate(p.rot);
+    // 影子
+    g.save(); g.translate(1.5 + lift * 5, 2.5 + lift * 8); g.scale(sc, sc);
+    g.fillStyle = `rgba(70,45,20,${.2 - lift * .06})`; g.fill(sh.path); g.restore();
+    g.scale(sc, sc);
+    g.fillStyle = COL[p.c]; g.fill(sh.path);
+    g.lineJoin = 'round'; g.lineWidth = 2.6; g.strokeStyle = '#fff'; g.stroke(sh.path);
+    g.save(); g.scale(K, K); g.translate(sh.ox, sh.oy); sh.deco(g, p.c); g.restore();
+    g.restore();
+  }
+  function hitPiece(p, x, y) {
+    const sh = SH[p.t], dx = x - p.x, dy = y - p.y, cs = Math.cos(-p.rot), sn = Math.sin(-p.rot);
+    const lx = dx * cs - dy * sn, ly = dx * sn + dy * cs;
+    if (hitCtx.isPointInPath(sh.path, lx, ly)) return true;
+    for (const [qx, qy, qr] of sh.disks) if (hyp(lx - qx * K, ly - qy * K) < qr * K + 7) return true;
+    return false;
+  }
+  function worldDisks(p) {
+    const cs = Math.cos(p.rotT), sn = Math.sin(p.rotT);
+    return SH[p.t].disks.map(([x, y, r]) => [p.x + (x * cs - y * sn) * K, p.y + (x * sn + y * cs) * K, r * K]);
+  }
+
+  /* ---- 池畔：6 型 × 4 色 ---- */
+  const SLOTS = [];
+  for (let c = 0; c < 4; c++) for (let t = 0; t < 6; t++) {
+    const ang = (-135 + c * 90 + 6 + (t + .5) * 13) * Math.PI / 180;
+    SLOTS.push({ t, c, ang, x: CX + Math.cos(ang) * RIM_R, y: CY + Math.sin(ang) * RIM_R, rot: ang + Math.PI / 2, sc: .86, lift: 0 });
+  }
+
+  /* ---- 狀態 ---- */
+  let pieces = [], works = new Map(), creatures = [], rings = new Map(), ripples = [], swarms = [], gold = null;
+  let pid = 1, wid = 1, dirty = false, drag = null, swarmT = 6, bus = null, beds = [], bloopT = 3;
+  let staticL = null, waterL = null, wrot = 0, lastTone = [0, 0, 0, 0], toneStep = [0, 0, 0, 0];
+
+  function reset() {
+    pieces = []; works.clear(); rings.clear(); ripples = []; swarms = []; creatures = [];
+    for (let c = 0; c < 4; c++) creatures.push(makeCreature(c, false, ...randInWater(RW * .7), 'wander', .9));
+    gold = { x: CX - 80, y: CY + 40, vx: 20, vy: 0, wx: CX, wy: CY, state: 'swim', timer: rand(8, 12), jump: 0, flip: 1, hideW: null };
+    dirty = false; drag = null;
+  }
+  function randInWater(rr) { const a = rand(0, TAU), d = Math.sqrt(Math.random()) * rr; return [CX + Math.cos(a) * d, CY + Math.sin(a) * d]; }
+  function makeCreature(c, big, x, y, state, alpha = 0) {
+    return { c, big, x, y, vx: 0, vy: 0, state, workId: null, phase: rand(0, TAU), orbit: 0, spin: (Math.random() < .5 ? -1 : 1) * rand(.28, .5),
+      alpha, fade: 1, seed: rand(0, 100), wx: x, wy: y, timer: 0, heading: rand(0, TAU), flip: 1, lx: x, ly: y, lr: 20 };
+  }
+  function pickWander(cr) { [cr.wx, cr.wy] = randInWater(RW * .78); }
+
+  /* ---- 作品判定：距離 3 公分內的部件算同一組 ---- */
+  function recluster() {
+    dirty = false;
+    const ps = pieces.filter(p => p.state === 'water');
+    const n = ps.length, par = ps.map((_, i) => i);
+    const find = i => par[i] === i ? i : (par[i] = find(par[i]));
+    const D = ps.map(worldDisks);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      let m = 1e9;
+      for (const a of D[i]) for (const b of D[j]) m = Math.min(m, hyp(a[0] - b[0], a[1] - b[1]) - a[2] - b[2]);
+      if (m < 3 * K) par[find(i)] = find(j);
+    }
+    const groups = new Map();
+    ps.forEach((p, i) => { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(p); });
+    const old = works, next = new Map(), used = new Set();
+    for (const g of groups.values()) {
+      // 沿用舊作品編號（共用最多部件的那個）
+      const tally = new Map();
+      for (const p of g) if (p.work && old.has(p.work) && !used.has(p.work)) tally.set(p.work, (tally.get(p.work) || 0) + 1);
+      let id = null, best = 0; for (const [k, v] of tally) if (v > best) { best = v; id = k; }
+      if (id == null) id = wid++;
+      used.add(id);
+      let cx = 0, cy = 0; for (const p of g) { cx += p.x; cy += p.y; } cx /= g.length; cy /= g.length;
+      let r = 0; for (const p of g) r = Math.max(r, hyp(p.x - cx, p.y - cy) + SH[p.t].br * K * .8);
+      const counts = [0, 0, 0, 0]; for (const p of g) { counts[p.c]++; p.work = id; }
+      next.set(id, { id, pieces: g, cx, cy, r, counts });
+    }
+    works = next;
+    reconcile();
+  }
+  function tierOf(n) { return n <= 0 ? 0 : n === 1 ? 1 : n <= 3 ? 2 : 3; }
+  function reconcile() {
+    // 想要的數量
+    const want = [];
+    let totalSmall = 0;
+    for (const w of works.values()) for (let c = 0; c < 4; c++) {
+      const n = w.counts[c], tier = tierOf(n); if (!tier) continue;
+      const small = tier === 1 ? 2 : tier === 2 ? (n === 2 ? 3 : 4) : 5;
+      want.push({ w, c, tier, small, big: tier === 3 ? 1 : 0, parts: tier === 1 ? 11 : tier === 2 ? 18 : 26 });
+      totalSmall += small;
+    }
+    const cap = 34, k = totalSmall > cap ? cap / totalSmall : 1;   // 總量上限
+    let bigCount = 0;
+    const tones = [0, 0, 0, 0];
+    for (const it of want) {
+      it.small = Math.max(1, Math.round(it.small * k));
+      if (it.big && bigCount >= 6) it.big = 0; bigCount += it.big;
+      for (const big of [false, true]) {
+        const need = big ? it.big : it.small;
+        const mine = creatures.filter(cr => cr.workId === it.w.id && cr.c === it.c && cr.big === big && cr.state === 'orbit');
+        if (mine.length < need) {
+          for (let i = mine.length; i < need; i++) {
+            let cr = null;
+            if (!big) {   // 先找附近同色、正在閒晃或要離開的夥伴
+              let bd = 1e9;
+              for (const o of creatures) if (o.c === it.c && !o.big && o.state !== 'orbit' && o.fade > 0) {
+                const d = hyp(o.x - it.w.cx, o.y - it.w.cy); if (d < bd) { bd = d; cr = o; }
+              }
+            }
+            if (!cr) {
+              const a = Math.atan2(it.w.cy - CY, it.w.cx - CX) + rand(-1.4, 1.4);
+              cr = makeCreature(it.c, big, CX + Math.cos(a) * (RW - 14), CY + Math.sin(a) * (RW - 14), 'orbit');
+              creatures.push(cr);
+            }
+            cr.state = 'orbit'; cr.workId = it.w.id; cr.fade = 1;
+            cr.orbit = big ? rand(34, 48) : rand(22, 64);
+            cr.spin = (Math.random() < .5 ? -1 : 1) * (big ? rand(.18, .26) : rand(.3, .55));
+            tones[it.c] += big ? 2 : 1;
+          }
+        } else if (mine.length > need) {
+          for (let i = need; i < mine.length; i++) { mine[i].state = 'linger'; mine[i].timer = 1.2; }
+        }
+      }
+      const key = it.w.id + ':' + it.c;
+      let rg = rings.get(key);
+      if (!rg) { rg = { w: it.w.id, c: it.c, cx: it.w.cx, cy: it.w.cy, r: it.w.r * .4, count: 0, target: it.parts, alpha: 0, alive: true, seed: rand(0, 10), spin: rand(.15, .3) * (Math.random() < .5 ? -1 : 1) }; rings.set(key, rg); }
+      rg.target = it.parts; rg.alive = true; rg.tr = it.w.r + 16; rg.tx = it.w.cx; rg.ty = it.w.cy;
+    }
+    // 消失的作品：粒子散開，夥伴停留幾秒再游走
+    for (const [key, rg] of rings) if (!want.some(it => it.w.id === rg.w && it.c === rg.c)) rg.alive = false;
+    for (const cr of creatures) if (cr.state === 'orbit' && !works.has(cr.workId)) { cr.state = 'linger'; cr.timer = 3; }
+    for (const cr of creatures) if (cr.state === 'orbit' && works.has(cr.workId) && !works.get(cr.workId).counts[cr.c]) { cr.state = 'linger'; cr.timer = 2; }
+    // 夥伴來了的顏色音色
+    tones.forEach((n, c) => { for (let i = 0; i < Math.min(n, 4); i++) colorTone(c, i * .13 + .25); });
+    // 補回閒晃的夥伴
+    for (let c = 0; c < 4; c++) if (!creatures.some(cr => cr.c === c && cr.state === 'wander')) {
+      const a = rand(0, TAU); const cr = makeCreature(c, false, CX + Math.cos(a) * (RW - 14), CY + Math.sin(a) * (RW - 14), 'wander');
+      cr.delay = rand(5, 9); creatures.push(cr);
+    }
+  }
+
+  /* ---- 聲音 ---- */
+  const PENTA = [523.25, 587.33, 659.25, 783.99, 880];
+  function colorTone(c, delay = 0) {
+    if (!AU.ctx || !bus) return;
+    const now = AU.t; let t = now + delay;
+    if (t - lastTone[c] < .11) t = lastTone[c] + .11;
+    lastTone[c] = t;
+    const step = toneStep[c]++ % 5, f = PENTA[step];
+    if (c === 0) {           // 紅：鈴鐺
+      const ctx2 = AU.ctx, car = ctx2.createOscillator(), mod = ctx2.createOscillator(), mg = ctx2.createGain(), g = ctx2.createGain();
+      car.frequency.value = f * 2; mod.frequency.value = f * 2 * 3.5;
+      mg.gain.setValueAtTime(f * 3, t); mg.gain.exponentialRampToValueAtTime(10, t + 1);
+      mod.connect(mg); mg.connect(car.frequency); car.connect(g); g.connect(bus);
+      g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.09, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + 1.3);
+      car.start(t); mod.start(t); car.stop(t + 1.4); mod.stop(t + 1.4);
+    } else if (c === 1) {    // 綠：木琴
+      tone(bus, t, { f, d: .32, g: .2 }); tone(bus, t, { f: f * 4, d: .08, g: .06 });
+      hit(bus, t, { f: 2400, q: 2, d: .02, g: .05 });
+    } else if (c === 2) {    // 藍：水滴泡泡
+      tone(bus, t, { f: f * .55, f2: f * 1.5, glide: .07, d: .16, g: .2 });
+      tone(bus, t + .07, { f: f * .8, f2: f * 2, glide: .05, d: .1, g: .1 });
+    } else {                 // 黃：鐵琴＋沙鈴
+      tone(bus, t, { f: f * 2, d: .9, g: .09 }); tone(bus, t, { f: f * 2 * 2.76, d: .25, g: .03 });
+      hit(bus, t, { ft: 'highpass', f: 6000, d: .07, g: .05 }); hit(bus, t + .09, { ft: 'highpass', f: 6500, d: .05, g: .035 });
+    }
+  }
+  function tok() { if (!bus) return; const t = AU.t; tone(bus, t, { f: 330, f2: 250, glide: .05, d: .07, g: .14 }); hit(bus, t, { ft: 'lowpass', f: 1800, d: .025, g: .09 }); }
+  function plip(x) { if (!bus) return; const t = AU.t; tone(bus, t, { f: 900, f2: 1500, glide: .05, d: .09, g: .05, pan: (x - CX) / 400 }); }
+  function splash(x) {
+    if (!bus) return; const t = AU.t, pan = (x - CX) / 400;
+    hit(bus, t, { f: 1300, q: .7, d: .28, g: .16, pan });
+    for (let i = 0; i < 3; i++) tone(bus, t + .05 + i * .06, { f: 700 + i * 260, f2: 1500 + i * 300, glide: .05, d: .08, g: .06, pan });
+  }
+  function audioStart() {
+    if (!AU.ctx || bus) return;
+    bus = AU.bus(1);
+    const b1 = bed(bus, { noise: 'brown', f: 420, g: .05 });
+    const b2 = bed(bus, { noise: 'pink', ft: 'bandpass', f: 900, q: .6, g: .012 });
+    beds = [b1, b2, lfo(b1.f.frequency, .07, 140), lfo(b2.g.gain, .05, .006)];
+  }
+  function audioStop() { if (!bus) return; AU.closeBus(bus); const bs = beds; setTimeout(() => bs.forEach(b => { try { b.stop(); } catch (_) {} }), 900); bus = null; beds = []; }
+
+  /* ---- 指標 ---- */
+  function down(p, e) {
+    if (drag) return;
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      const pc = pieces[i];
+      if (pc.state === 'water' && hitPiece(pc, p.x, p.y)) {
+        pieces.splice(i, 1); pieces.push(pc);
+        pc.state = 'drag'; dirty = true;
+        drag = { pc, id: e.pointerId, ox: pc.x - p.x, oy: pc.y - p.y, sx: p.x, sy: p.y, t0: performance.now(), moved: 0, fromRim: false };
+        return;
+      }
+    }
+    for (const s of SLOTS) if (hyp(s.x - p.x, s.y - p.y) < 34) {
+      if (pieces.filter(q => q.state !== 'return').length >= 40) return;
+      const pc = { id: pid++, t: s.t, c: s.c, x: s.x, y: s.y, rot: s.rot, rotT: s.rot, sc: .86, lift: 0, state: 'drag', work: null };
+      pieces.push(pc);
+      drag = { pc, id: e.pointerId, ox: 0, oy: 0, sx: p.x, sy: p.y, t0: performance.now(), moved: 0, fromRim: true };
+      return;
+    }
+    if (hyp(p.x - CX, p.y - CY) < RW) {
+      if (gold && hyp(gold.x - p.x, gold.y - p.y) < 42) { startle(p); return; }
+      ripples.push({ x: p.x, y: p.y, t: 0, c: null }); plip(p.x);
+      for (const cr of creatures) { const d = hyp(cr.x - p.x, cr.y - p.y); if (d < 95 && d > 1) { cr.vx += (cr.x - p.x) / d * 90; cr.vy += (cr.y - p.y) / d * 90; } }
+    }
+  }
+  function move(p, e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag.pc.x = clamp(p.x + drag.ox, 20, W - 20); drag.pc.y = clamp(p.y + drag.oy, 20, H - 20);
+    drag.moved = Math.max(drag.moved, hyp(p.x - drag.sx, p.y - drag.sy));
+  }
+  function up(p, e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const pc = drag.pc, tap = drag.moved < 8 && performance.now() - drag.t0 < 400;
+    if (tap && !drag.fromRim) { pc.rotT += Math.PI / 4; pc.state = 'water'; tok(); }
+    else {
+      const d = hyp(pc.x - CX, pc.y - CY), lim = RW - SH[pc.t].br * K * .55;
+      if (d < RW - 6) {
+        if (d > lim) { pc.x = CX + (pc.x - CX) / d * lim; pc.y = CY + (pc.y - CY) / d * lim; }
+        pc.state = 'water'; tok();
+        ripples.push({ x: pc.x, y: pc.y, t: 0, c: COL[pc.c] });
+      } else {
+        const s = SLOTS.find(s => s.t === pc.t && s.c === pc.c);
+        pc.state = 'return'; pc.rx = s.x; pc.ry = s.y; pc.rrot = s.rot;
+      }
+    }
+    dirty = true; drag = null;
+  }
+  function startle(p) {
+    gold.state = 'dart'; gold.timer = .9; gold.jump = 1; gold.hideW = null;
+    let dx = gold.x - p.x, dy = gold.y - p.y; const d = hyp(dx, dy) || 1;
+    gold.vx = dx / d * 340; gold.vy = dy / d * 340;
+    ripples.push({ x: gold.x, y: gold.y, t: 0, c: GOLD }); splash(gold.x);
+  }
+
+  /* ---- 更新 ---- */
+  function update(dt, t) {
+    wrot += dt * .012;
+    for (const pc of pieces) {
+      pc.lift = lerp(pc.lift, pc.state === 'drag' ? 1 : 0, Math.min(1, dt * 14));
+      pc.sc = lerp(pc.sc, pc.state === 'return' ? .86 : 1, Math.min(1, dt * 10));
+      pc.rot = lerp(pc.rot, pc.rotT, Math.min(1, dt * 12));
+      if (pc.state === 'return') {
+        pc.x = lerp(pc.x, pc.rx, Math.min(1, dt * 9)); pc.y = lerp(pc.y, pc.ry, Math.min(1, dt * 9));
+        pc.rotT = pc.rrot;
+        if (hyp(pc.x - pc.rx, pc.y - pc.ry) < 2) pc.dead = true;
+      }
+    }
+    if (pieces.some(p => p.dead)) pieces = pieces.filter(p => !p.dead);
+    if (dirty) recluster();
+
+    // 粒子圈
+    for (const [k, rg] of rings) {
+      if (rg.alive) { rg.alpha = Math.min(1, rg.alpha + dt * 2); rg.r = lerp(rg.r, rg.tr, Math.min(1, dt * 3)); rg.cx = lerp(rg.cx, rg.tx, dt * 6); rg.cy = lerp(rg.cy, rg.ty, dt * 6); rg.count = lerp(rg.count, rg.target, Math.min(1, dt * 3)); }
+      else { rg.alpha -= dt * .7; rg.r += dt * 40; if (rg.alpha <= 0) rings.delete(k); }
+    }
+    // 夥伴生物
+    for (const cr of creatures) {
+      if (cr.delay > 0) { cr.delay -= dt; continue; }
+      let tx, ty, max;
+      if (cr.state === 'orbit') { const w = works.get(cr.workId); if (w) { cr.lx = w.cx; cr.ly = w.cy; cr.lr = w.r; } }
+      if (cr.state === 'orbit' || cr.state === 'linger') {
+        cr.phase += cr.spin * dt;
+        const R = cr.lr + cr.orbit;
+        tx = cr.lx + Math.cos(cr.phase) * R; ty = cr.ly + Math.sin(cr.phase) * R * .9;
+        max = cr.big ? 75 : 120;
+        if (cr.state === 'linger') { cr.timer -= dt; if (cr.timer <= 0) { cr.state = 'leave'; cr.timer = rand(2, 4); pickWander(cr); } }
+      } else {
+        if (hyp(cr.x - cr.wx, cr.y - cr.wy) < 24) pickWander(cr);
+        tx = cr.wx; ty = cr.wy; max = cr.big ? 28 : 38;
+        if (cr.state === 'leave') {
+          cr.timer -= dt;
+          if (cr.timer <= 0) {
+            if (!cr.big && !creatures.some(o => o !== cr && o.c === cr.c && o.state === 'wander' && o.fade > 0)) cr.state = 'wander';
+            else cr.fade = -1;
+          }
+        }
+      }
+      const dx = tx - cr.x, dy = ty - cr.y, d = hyp(dx, dy) || 1, sp = Math.min(max, d * 2.2);
+      const kk = Math.min(1, dt * 2.2);
+      cr.vx += (dx / d * sp - cr.vx) * kk; cr.vy += (dy / d * sp - cr.vy) * kk;
+      cr.x += cr.vx * dt; cr.y += cr.vy * dt;
+      const ox = cr.x - CX, oy = cr.y - CY, od = hyp(ox, oy), lim = RW - (cr.big ? 38 : 16);
+      if (od > lim) { cr.x = CX + ox / od * lim; cr.y = CY + oy / od * lim; }
+      cr.alpha = clamp(cr.alpha + cr.fade * dt * 1.4, 0, cr.big ? 1 : .95);
+      const s = hyp(cr.vx, cr.vy);
+      if (s > 5) { cr.heading = Math.atan2(cr.vy, cr.vx); if (Math.abs(cr.vx) > 4) cr.flip = cr.vx > 0 ? -1 : 1; }
+    }
+    creatures = creatures.filter(cr => !(cr.fade < 0 && cr.alpha <= 0));
+
+    // 小金魚
+    const g = gold; g.timer -= dt; g.jump = Math.max(0, g.jump - dt * 2.2);
+    let gx = g.wx, gy = g.wy, gmax = 46;
+    if (g.state === 'dart') { gmax = 340; gx = g.x + g.vx; gy = g.y + g.vy; if (g.timer <= 0) { g.state = 'swim'; g.timer = rand(7, 11); [g.wx, g.wy] = randInWater(RW * .7); } }
+    else if (g.state === 'seek' || g.state === 'hide') {
+      const w = works.get(g.hideW);
+      if (!w || !w.counts[0]) { g.state = 'swim'; g.timer = rand(6, 10); }
+      else {
+        const reds = w.pieces.filter(p => p.c === 0); let rx = 0, ry = 0; for (const p of reds) { rx += p.x; ry += p.y; } rx /= reds.length; ry /= reds.length;
+        gx = rx + Math.cos(t * .8) * 6; gy = ry + Math.sin(t * 1.1) * 5; gmax = g.state === 'seek' ? 60 : 14;
+        if (g.state === 'seek' && hyp(g.x - rx, g.y - ry) < 14) { g.state = 'hide'; g.timer = rand(4, 6); }
+        if (g.state === 'hide' && g.timer <= 0) { g.state = 'swim'; g.timer = rand(9, 15); [g.wx, g.wy] = randInWater(RW * .75); }
+      }
+    } else {
+      if (hyp(g.x - g.wx, g.y - g.wy) < 24) [g.wx, g.wy] = randInWater(RW * .75);
+      if (g.timer <= 0) {
+        const reds = [...works.values()].filter(w => w.counts[0] > 0);
+        if (reds.length) { g.state = 'seek'; g.hideW = reds[Math.floor(Math.random() * reds.length)].id; }
+        g.timer = rand(9, 15);
+      }
+    }
+    if (g.state !== 'dart') {
+      const dx = gx - g.x, dy = gy - g.y, d = hyp(dx, dy) || 1, sp = Math.min(gmax, d * 2);
+      const kk = Math.min(1, dt * 1.8); g.vx += (dx / d * sp - g.vx) * kk; g.vy += (dy / d * sp - g.vy) * kk;
+    } else { g.vx *= Math.pow(.25, dt); g.vy *= Math.pow(.25, dt); }
+    g.x += g.vx * dt; g.y += g.vy * dt;
+    { const ox = g.x - CX, oy = g.y - CY, od = hyp(ox, oy), lim = RW - 22; if (od > lim) { g.x = CX + ox / od * lim; g.y = CY + oy / od * lim; g.vx *= -.4; g.vy *= -.4; } }
+    if (Math.abs(g.vx) > 5) g.flip = g.vx > 0 ? -1 : 1;
+
+    // 漣漪、粒子群
+    for (const r of ripples) r.t += dt; ripples = ripples.filter(r => r.t < 1.6);
+    swarmT -= dt;
+    if (swarmT <= 0) {
+      swarmT = rand(12, 20);
+      const a = rand(0, TAU), b = a + Math.PI + rand(-.7, .7), R = RW - 30;
+      swarms.push({ c: Math.floor(rand(0, 4)), x0: CX + Math.cos(a) * R, y0: CY + Math.sin(a) * R, x1: CX + Math.cos(b) * R, y1: CY + Math.sin(b) * R, t: 0, dur: rand(9, 13), seed: rand(0, 9) });
+    }
+    for (const s of swarms) s.t += dt; swarms = swarms.filter(s => s.t < s.dur);
+    // 偶爾冒泡
+    if (bus) { bloopT -= dt; if (bloopT <= 0) { bloopT = rand(3, 7); const tt = AU.t; tone(bus, tt, { f: rand(250, 420), f2: rand(600, 900), glide: .08, d: .12, g: .025 }); } }
+  }
+
+  /* ---- 繪製 ---- */
+  function buildStatic() {
+    staticL = layer();
+    const g = staticL.g;
+    g.fillStyle = '#FFF3E2'; g.fillRect(0, 0, W, H);
+    // 地板上的彩色小點
+    const dots = ['#FFC93C', '#FF8FB1', '#4CBF8A', '#4A86E8', '#FF9F45'];
+    let s = 7; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    for (let i = 0; i < 110; i++) { g.globalAlpha = .22; g.fillStyle = dots[i % 5]; g.beginPath(); g.arc(r() * W, r() * H, 3 + r() * 5, 0, TAU); g.fill(); }
+    g.globalAlpha = 1;
+    // 地毯與桌影
+    g.fillStyle = '#DCEFEB'; g.beginPath(); g.ellipse(CX, CY + 18, ROUT + 46, ROUT + 30, 0, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(80,60,40,.16)'; g.beginPath(); g.arc(CX + 6, CY + 14, ROUT + 4, 0, TAU); g.fill();
+    // 池畔木作
+    g.fillStyle = '#E9C391'; g.beginPath(); g.arc(CX, CY, ROUT, 0, TAU); g.fill();
+    g.strokeStyle = '#D2A26C'; g.lineWidth = 3; g.stroke();
+    g.fillStyle = '#DDB079'; g.beginPath(); g.arc(CX, CY, ROUT - 10, 0, TAU); g.arc(CX, CY, RW + 9, 0, TAU, true); g.fill('evenodd');
+    g.strokeStyle = 'rgba(160,110,60,.25)'; g.lineWidth = 1.5;
+    for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(CX, CY, RW + 14 + i * 7.5, rand(0, TAU), rand(0, TAU) + rand(.4, 1.4)); g.stroke(); }
+    // 水面底色與邊緣
+    g.fillStyle = '#C9E7E2'; g.beginPath(); g.arc(CX, CY, RW + 4, 0, TAU); g.fill();
+    g.fillStyle = '#F2FAF7'; g.beginPath(); g.arc(CX, CY, RW, 0, TAU); g.fill();
+    g.strokeStyle = '#DCEFEA'; g.lineWidth = 10; g.beginPath(); g.arc(CX, CY, RW - 5, 0, TAU); g.stroke();
+    // 池畔上的部件
+    for (const sl of SLOTS) drawPiece(g, sl);
+    // 水紋
+    waterL = layer(RW * 2, RW * 2);
+    const w = waterL.g; w.translate(RW, RW);
+    w.strokeStyle = '#D5EDE8'; w.lineWidth = 3.2; w.lineCap = 'round';
+    let s2 = 3; const r2 = () => (s2 = (s2 * 9301 + 49297) % 233280) / 233280;
+    for (let i = 0; i < 26; i++) {
+      const a = r2() * TAU, d = Math.sqrt(r2()) * (RW - 30), x = Math.cos(a) * d, y = Math.sin(a) * d, L = 14 + r2() * 18;
+      w.beginPath(); w.moveTo(x - L, y); w.quadraticCurveTo(x - L / 2, y - 6, x, y); w.quadraticCurveTo(x + L / 2, y + 6, x + L, y); w.stroke();
+    }
+  }
+  function particle(g, c, x, y, s, rot) {
+    g.save(); g.translate(x, y);
+    if (c === 0) { g.fillStyle = COL[0]; g.beginPath(); g.arc(0, 0, 4 * s, 0, TAU); g.fill(); }
+    else if (c === 1) { g.rotate(rot); g.fillStyle = COL[1]; g.beginPath(); g.ellipse(0, 0, 6.5 * s, 3 * s, 0, 0, TAU); g.fill(); }
+    else if (c === 2) { g.strokeStyle = COL[2]; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 5 * s, 0, TAU); g.stroke(); }
+    else { g.rotate(rot * .3); g.fillStyle = COL[3]; g.beginPath(); for (let i = 0; i < 10; i++) { const rr = (i % 2 ? 2.7 : 6.2) * s, a = -Math.PI / 2 + i * Math.PI / 5; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } g.closePath(); g.fill(); }
+    g.restore();
+  }
+  function drawFish(g, col, t, seed, big) {
+    const wag = Math.sin(t * (big ? 5 : 9) + seed) * .22;
+    g.save(); g.translate(10, 0); g.scale(1, 1 + wag); g.fillStyle = col;
+    if (big) { g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(8, -12, 18, -14, 16, -2); g.lineTo(12, 0); g.lineTo(16, 2); g.bezierCurveTo(18, 14, 8, 12, 0, 0); g.fill(); }
+    else { g.beginPath(); g.moveTo(0, 0); g.lineTo(12, -9); g.lineTo(12, 9); g.closePath(); g.fill(); }
+    g.restore();
+    g.fillStyle = col; g.beginPath(); g.ellipse(0, 0, 14, 8.5, 0, 0, TAU); g.fill();
+    if (big) {
+      g.beginPath(); g.moveTo(-4, -7); g.quadraticCurveTo(2, -15, 8, -6); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.85)'; for (const [x, y, r] of [[1, -2, 1.6], [5, 2, 1.2], [-2, 3, 1.1]]) { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(-7.5, -2, 2.8, 0, TAU); g.fill(); g.fillStyle = PUPIL; g.beginPath(); g.arc(-8, -2, 1.5, 0, TAU); g.fill();
+    } else { g.fillStyle = '#fff'; g.beginPath(); g.arc(-7, -2, 2.4, 0, TAU); g.fill(); }
+  }
+  function drawTurtle(g, col, t, seed, big) {
+    const pad = Math.sin(t * 4 + seed) * .35;
+    g.fillStyle = col;
+    g.beginPath(); g.arc(15, 0, 5.5, 0, TAU); g.fill();
+    for (const [x, y, s] of [[-8, -9, -1], [-8, 9, 1], [7, -9, 1], [7, 9, -1]]) { g.save(); g.translate(x, y); g.rotate(pad * s); g.beginPath(); g.ellipse(0, 0, 4.4, 3, 0, 0, TAU); g.fill(); g.restore(); }
+    g.beginPath(); g.ellipse(0, 0, 13, 10, 0, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = big ? 1 : 1.6; g.lineCap = 'round';
+    if (big) { g.beginPath(); g.moveTo(-4, -4); g.lineTo(4, -4); g.lineTo(6.5, 0); g.lineTo(4, 4); g.lineTo(-4, 4); g.lineTo(-6.5, 0); g.closePath(); g.moveTo(-4, -4); g.lineTo(-7, -8); g.moveTo(4, -4); g.lineTo(7, -8); g.moveTo(-4, 4); g.lineTo(-7, 8); g.moveTo(4, 4); g.lineTo(7, 8); g.stroke(); }
+    else { g.beginPath(); g.moveTo(-6, 0); g.lineTo(6, 0); g.moveTo(0, -6); g.lineTo(0, 6); g.stroke(); }
+    g.fillStyle = PUPIL; g.beginPath(); g.arc(17, -2.4, .9, 0, TAU); g.arc(17, 2.4, .9, 0, TAU); g.fill();
+  }
+  function drawJelly(g, col, t, seed, big) {
+    g.translate(0, Math.sin(t * 2 + seed) * 2.5);
+    g.fillStyle = col; g.beginPath(); g.moveTo(-12, 0); g.arc(0, 0, 12, Math.PI, 0); g.closePath(); g.fill();
+    g.strokeStyle = col; g.lineWidth = 2.6; g.lineCap = 'round';
+    for (const x of [-6, 0, 6]) {
+      const ph = t * 3 + seed + x;
+      g.beginPath(); g.moveTo(x, 2);
+      g.quadraticCurveTo(x + 3 * Math.sin(ph), 8, x, 14); g.quadraticCurveTo(x - 3 * Math.sin(ph + 1), 20, x, 24); g.stroke();
+    }
+    if (big) { g.fillStyle = 'rgba(255,255,255,.8)'; for (const [x, y] of [[-5, -4], [0, -7], [5, -4], [-1, -2.5]]) { g.beginPath(); g.arc(x, y, 1.2, 0, TAU); g.fill(); } }
+  }
+  function drawDuck(g, col, t, seed, big) {
+    g.translate(0, Math.sin(t * 2.4 + seed) * 1.5);
+    g.fillStyle = col; g.beginPath(); g.ellipse(0, 3, 13, 9, 0, 0, TAU); g.fill();
+    g.beginPath(); g.arc(-9, -7, 7, 0, TAU); g.fill();
+    if (big) { g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-1, 2); g.quadraticCurveTo(5, 9, 10, 1); g.stroke(); }
+    g.fillStyle = '#D9962A'; g.beginPath(); g.moveTo(-15, -7); g.lineTo(-21, -5); g.lineTo(-15, -3); g.closePath(); g.fill();
+    g.fillStyle = PUPIL; g.beginPath(); g.arc(-10, -8.5, 1.6, 0, TAU); g.fill();
+  }
+  function drawCreature(g, cr, t) {
+    if (cr.delay > 0 || cr.alpha <= .01) return;
+    g.save(); g.globalAlpha = cr.alpha; g.translate(cr.x, cr.y);
+    const col = COL[cr.c], s = cr.big ? 2.3 : 1.3;
+    if (cr.c === 1) { g.rotate(cr.heading); g.scale(s, s); drawTurtle(g, col, t, cr.seed, cr.big); }
+    else if (cr.c === 2) { g.scale(s, s); drawJelly(g, col, t, cr.seed, cr.big); }
+    else {
+      g.scale(cr.flip * s, s);
+      if (cr.c === 0) { g.rotate(clamp(-cr.vy * .006, -.4, .4)); drawFish(g, col, t, cr.seed, cr.big); }
+      else drawDuck(g, col, t, cr.seed, cr.big);
+    }
+    g.restore();
+  }
+  function drawGold(g, t) {
+    const gd = gold, j = gd.jump, s = 1.7 * (1 + Math.sin(j * Math.PI) * .45);
+    g.save(); g.translate(gd.x, gd.y - Math.sin(j * Math.PI) * 10); g.scale(gd.flip * s, s);
+    g.rotate(clamp(-gd.vy * .004, -.45, .45));
+    const wag = Math.sin(t * 7) * .25;
+    g.fillStyle = GOLD;
+    g.save(); g.translate(10, 0); g.scale(1, 1 + wag); g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(8, -12, 20, -14, 20, -4); g.bezierCurveTo(16, -2, 16, 2, 20, 4); g.bezierCurveTo(20, 14, 8, 12, 0, 0); g.fill(); g.restore();
+    g.beginPath(); g.ellipse(0, 0, 15, 10, 0, 0, TAU); g.fill();
+    g.beginPath(); g.moveTo(-2, -9.5); g.quadraticCurveTo(4, -18, 10, -7); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(-7, -2.5, 3, 0, TAU); g.fill();
+    g.fillStyle = PUPIL; g.beginPath(); g.arc(-7.6, -2.5, 1.6, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(2, 3, 5, 2.2, .2, 0, TAU); g.fill();
+    g.restore();
+  }
+  function draw(g, t) {
+    if (!staticL) buildStatic();
+    g.drawImage(staticL.c, 0, 0, W, H);
+    g.save();
+    g.beginPath(); g.arc(CX, CY, RW, 0, TAU); g.clip();
+    g.save(); g.translate(CX, CY); g.rotate(wrot); g.drawImage(waterL.c, -RW, -RW, RW * 2, RW * 2); g.restore();
+    // 粒子群
+    for (const sw of swarms) {
+      const u = sw.t / sw.dur, a = Math.min(1, Math.min(u, 1 - u) * 5) * .7;
+      const bx = lerp(sw.x0, sw.x1, u), by = lerp(sw.y0, sw.y1, u) + Math.sin(u * 6 + sw.seed) * 20;
+      g.globalAlpha = a;
+      for (let i = 0; i < 12; i++) { const ox = Math.cos(i * 2.4 + sw.seed) * (14 + i * 3), oy = Math.sin(i * 1.7 + t + sw.seed) * (10 + i * 2); particle(g, sw.c, bx + ox, by + oy, .8, t + i); }
+      g.globalAlpha = 1;
+    }
+    // 漣漪
+    for (const r of ripples) {
+      const u = r.t / 1.6;
+      for (let i = 0; i < 3; i++) {
+        const rr = 10 + u * 95 - i * 16; if (rr <= 2) continue;
+        g.globalAlpha = (1 - u) * (1 - i * .25) * .9;
+        g.strokeStyle = r.c || '#8CCFC6'; g.lineWidth = r.c ? 3 : 3.5;
+        g.beginPath(); g.ellipse(r.x, r.y, rr, rr * .92, 0, 0, TAU); g.stroke();
+      }
+      g.globalAlpha = 1;
+    }
+    // 粒子圈
+    for (const rg of rings.values()) {
+      const n = Math.round(rg.count); g.globalAlpha = Math.max(0, rg.alpha) * .78;
+      for (let i = 0; i < n; i++) {
+        const lay = i % 2, a = i / n * TAU + t * rg.spin * (lay ? -1 : 1) + rg.seed;
+        const rr = rg.r + lay * 15 + Math.sin(t * 1.3 + i * 1.7) * 5;
+        particle(g, rg.c, rg.cx + Math.cos(a) * rr, rg.cy + Math.sin(a) * rr * .92, lay ? .75 : 1, t + i);
+      }
+      g.globalAlpha = 1;
+    }
+    // 大夥伴在下，小生物在上
+    for (const cr of creatures) if (cr.big) drawCreature(g, cr, t);
+    for (const cr of creatures) if (!cr.big) drawCreature(g, cr, t);
+    drawGold(g, t);
+    g.restore();
+    // 實體部件（蓋在投影上面）
+    for (const pc of pieces) if (pc.state === 'water') drawPiece(g, pc);
+    for (const pc of pieces) if (pc.state !== 'water') drawPiece(g, pc);
+  }
+
+  /* ---- 示範畫面（截圖用）---- */
+  function demo() {
+    const add = (t, c, x, y, rotDeg) => { const r = rotDeg * Math.PI / 180; pieces.push({ id: pid++, t, c, x, y, rot: r, rotT: r, sc: 1, lift: 0, state: 'water', work: null }); };
+    // 糖果魚（紅）
+    add(1, 0, 545, 300 - 2.546 * K, 0); add(1, 0, 545, 300 + 2.546 * K, 180);   // 兩個半圓背對背
+    add(3, 0, 545 + 10.6 * K, 300, 45); add(3, 0, 545 - 10.6 * K, 300, 225);      // 四分之一圓當糖果包裝
+    // 水母（藍頭＋黃觸手）
+    add(1, 2, 690, 395, 0);
+    add(0, 3, 690 - 4.2 * K, 395 + 7 * K, 90); add(0, 3, 690, 395 + 7.4 * K, 90); add(0, 3, 690 + 4.2 * K, 395 + 7 * K, 90);
+    // 綠色葉形一塊
+    add(0, 1, 500, 470, -20);
+    recluster();
+    for (let i = 0; i < 260; i++) update(1 / 30, i / 30);
+    for (const cr of creatures) { cr.alpha = cr.fade > 0 ? (cr.big ? 1 : .95) : 0; }
+  }
+
+  return {
+    embedView: { x: 236, y: 16, w: 728, h: 728 },
+    bg: '#FFF3E2', hint: '從池畔拖部件到水面．點部件可轉向．拖回池畔收起來',
+    enter() { ui.hidden = false; if (!gold) { reset(); if (DEMO) demo(); } if (AU.ctx) audioStart(); },
+    exit() { ui.hidden = true; audioStop(); },
+    resize() { staticL = null; },
+    reset() { reset(); }, update, draw, down, move, up, audioStart
+  };
+})();
+
+/* ================================================================
+   互動合唱牆（下一步）
+   ================================================================ */
+const PENGUIN = (() => {
+  const ui = $('#ui-penguin'), bubble = $('#pgBubble');
+  const N = 11, X0 = 262, DX = 84;
+  const NOTES = [261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+  const TB = [{ name: '口風琴', col: '#EF5B5B' }, { name: '企鵝叫', col: '#2B2B33' }, { name: '拍肚子', col: '#3F7FD8' }];
+  const BTN = [{ x: 118, y: 366 }, { x: 118, y: 474 }, { x: 118, y: 582 }];
+  const KP = { x: 700, y: 196 };
+  const PHRASES = [[2, 3, 4], [4, 3, 2, 0], [0, 2, 4, 5], [5, 4, 3, 4, 5], [3, 5, 7, 8], [8, 7, 5, 3, 5]];
+  const NOTE_COLS = ['#EF5B5B', '#3F7FD8', '#2B2B33', '#FF9F45'];
+  let P = [], timbre = 0, notes = [], hearts = [], stars = [], snow = [], bars = new Float32Array(48);
+  let mode = 'free', phrase = null, step = 0, timer = 0, expect = 0, idle = 0, phraseK = 0, heartIdx = 7;
+  let bus = null, sinceInput = 0, keeperB = 0, staticL = null, idleNoteT = 6, btnPress = [0, 0, 0], freq = null;
+
+  function reset() {
+    P = [];
+    for (let i = 0; i < N; i++) {
+      const front = i % 2 === 0;
+      P.push({ i, front, x: X0 + i * DX, feet: front ? 592 : 548, h: front ? 190 : 176, w: front ? 50 : 45,
+        lit: 0, squish: 0, happy: 0, blink: rand(1, 5), blinkA: 0, sway: rand(0, TAU), hint: 0, hintT: 0, jumpT: -1, flap: 0 });
+    }
+    mode = 'free'; notes = []; hearts = []; stars = []; heartIdx = 7; timbre = 0; showBubble('');
+    snow = []; for (let i = 0; i < 46; i++) snow.push({ x: rand(40, 1160), y: rand(30, 660), r: rand(1.5, 3.6), s: rand(10, 26), p: rand(0, TAU) });
+  }
+  function showBubble(s) { bubble.textContent = s; bubble.hidden = !s; }
+
+  /* ---- 音色 ---- */
+  function playNote(i, vel = .75, tb = timbre, when = 0) {
+    if (!AU.ctx || !bus) return;
+    const c = AU.ctx, t = AU.t + when + .005, f = NOTES[i], out = panNode(bus, (i - 5) / 7);
+    if (tb === 0) {            // 口風琴
+      const g = c.createGain(), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = Math.min(5200, f * 5); lp.Q.value = .7;
+      const o1 = c.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = f;
+      const o2 = c.createOscillator(); o2.type = 'square'; o2.frequency.value = f * 1.004;
+      const m2 = c.createGain(); m2.gain.value = .45; o2.connect(m2); m2.connect(lp); o1.connect(lp); lp.connect(g); g.connect(out);
+      const vib = c.createOscillator(), vg = c.createGain(); vib.frequency.value = 5.5;
+      vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(f * .007, t + .25); vib.connect(vg); vg.connect(o1.frequency); vg.connect(o2.frequency);
+      const pk = .1 * vel;
+      g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(pk, t + .035); g.gain.setValueAtTime(pk * .85, t + .3); g.gain.exponentialRampToValueAtTime(.0001, t + .62);
+      for (const o of [o1, o2, vib]) { o.start(t); o.stop(t + .7); }
+    } else if (tb === 1) {     // 企鵝叫
+      const o = c.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f * .82, t); o.frequency.exponentialRampToValueAtTime(f * 1.12, t + .05); o.frequency.exponentialRampToValueAtTime(f * .93, t + .26);
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = Math.min(4000, f * 2.4); bp.Q.value = 2.2;
+      const am = c.createGain(); am.gain.value = .65;
+      const tr = c.createOscillator(), tg = c.createGain(); tr.frequency.value = 26; tg.gain.value = .35; tr.connect(tg); tg.connect(am.gain);
+      const g = c.createGain(); o.connect(bp); bp.connect(am); am.connect(g); g.connect(out);
+      g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.45 * vel, t + .012); g.gain.exponentialRampToValueAtTime(.0001, t + .32);
+      o.start(t); tr.start(t); o.stop(t + .36); tr.stop(t + .36);
+      hit(out, t, { f: 2600, q: 1.2, d: .1, g: .03 * vel });
+    } else {                   // 拍肚子
+      tone(out, t, { f: f * 1.6, f2: f, glide: .035, d: .3, g: .3 * vel });
+      tone(out, t, { f: f * 2, type: 'triangle', d: .12, g: .05 * vel });
+      hit(out, t, { ft: 'lowpass', f: 700, d: .06, g: .25 * vel, noise: 'brown' });
+    }
+  }
+  function audioStart() { if (AU.ctx && !bus) bus = AU.bus(1); }
+  function audioStop() { AU.closeBus(bus); bus = null; }
+
+  /* ---- 互動 ---- */
+  function noteBurst(x, y, n, power = 1) {
+    for (let k = 0; k < n; k++) notes.push({ x: x + rand(-14, 14), y, vx: rand(-35, 35), vy: -rand(70, 110) * power, life: 0, max: rand(1.2, 1.7), col: NOTE_COLS[Math.floor(rand(0, 4))], s: rand(.85, 1.15) * (0.8 + power * .25), dbl: Math.random() < .4, rot: rand(-.3, .3) });
+  }
+  function tap(i, vel = .75) {
+    const p = P[i]; p.lit = 1; p.squish = 1; p.happy = 1.1; p.flap = 1; sinceInput = 0;
+    playNote(i, vel);
+    noteBurst(p.x, p.feet - p.h - 6, vel > .8 ? 3 : 2, .7 + vel * .5);
+    if (mode === 'echo' && phrase) {
+      if (i === phrase[expect]) {
+        expect++; idle = 0; P[i].hint = 0;
+        stars.push({ x: p.x, y: p.feet - p.h - 20, life: 0 });
+        if (expect >= phrase.length) startChorus();
+      }
+    }
+    if (!p.front && i === heartIdx && (mode === 'free' || mode === 'echo')) startEgg();
+  }
+  function startFollow() {
+    if (mode === 'demo' || mode === 'chorus' || mode === 'egg') return;
+    phrase = PHRASES[phraseK++ % PHRASES.length]; mode = 'demo'; step = 0; timer = .45; sinceInput = 0;
+    P.forEach(p => p.hint = 0);
+    showBubble('先聽保育員吹一段…');
+  }
+  function startChorus() {
+    mode = 'chorus'; timer = 2.8; showBubble('全體大合唱！');
+    const seq = [...phrase, ...phrase.slice(-1)];
+    seq.forEach((idx, k) => { playNote(idx, .8, timbre, k * .2); playNote(Math.min(10, idx + 2), .55, 0, k * .2); });
+    [0, 3, 5, 7].forEach((idx, k) => playNote(idx, .6, timbre, seq.length * .2 + .1 + k * .05));
+    P.forEach((p, k) => { p.jumpT = -k * .07; p.happy = 2.6; p.lit = .8; });
+  }
+  function startEgg() {
+    mode = 'egg'; timer = 2.8; showBubble('找到愛心企鵝了！');
+    [0, 2, 3, 5, 3, 5, 7].forEach((idx, k) => playNote(idx, .75, timbre, .15 + k * .16));
+    P.forEach((p, k) => { p.happy = 2.6; p.jumpT = -.2 - k * .05; });
+    for (let k = 0; k < 18; k++) hearts.push({ x: rand(250, 1110), y: rand(430, 560), vy: -rand(50, 95), vx: rand(-15, 15), life: -rand(0, .8), s: rand(.8, 1.5) });
+  }
+  function hitPenguin(x, y) {
+    for (const front of [true, false]) for (const p of P) if (p.front === front) {
+      const cy = p.feet - p.h / 2;
+      if (((x - p.x) / (p.w + 6)) ** 2 + ((y - cy) / (p.h / 2 + 6)) ** 2 < 1) return p.i;
+    }
+    return -1;
+  }
+  function down(pt, e) {
+    for (let k = 0; k < 3; k++) if (hyp(pt.x - BTN[k].x, pt.y - BTN[k].y) < 40) {
+      timbre = k; btnPress[k] = 1; sinceInput = 0; playNote(5, .7, k); return;
+    }
+    if (pt.x > KP.x - 70 && pt.x < KP.x + 75 && pt.y > KP.y - 70 && pt.y < KP.y + 90) { startFollow(); return; }
+    const i = hitPenguin(pt.x, pt.y);
+    if (i >= 0) {
+      let vel = .75;
+      if (e && e.pointerType === 'pen' && e.pressure > 0) vel = .45 + e.pressure * .55;
+      tap(i, vel);
+    }
+  }
+  const KEYS = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'"];
+  function key(e) {
+    const k = KEYS.indexOf(e.key.toLowerCase());
+    if (k >= 0 && !e.repeat) tap(k);
+    else if (e.key === ' ') { startFollow(); e.preventDefault(); }
+    else if (['1', '2', '3'].includes(e.key)) { timbre = +e.key - 1; btnPress[timbre] = 1; playNote(5, .7); }
+  }
+
+  /* ---- 更新 ---- */
+  function update(dt, t) {
+    sinceInput += dt; keeperB = Math.max(0, keeperB - dt * 3);
+    for (let k = 0; k < 3; k++) btnPress[k] = Math.max(0, btnPress[k] - dt * 4);
+    if (mode === 'demo') {
+      timer -= dt;
+      if (timer <= 0) {
+        if (step < phrase.length) {
+          const idx = phrase[step]; playNote(idx, .8, 0); P[idx].hint = 1; P[idx].hintT = .55;
+          keeperB = 1; noteBurst(KP.x + 40, KP.y - 10, 1, .9); step++; timer = .62;
+        } else { mode = 'echo'; expect = 0; idle = 0; showBubble('換你拍！照著拍回去'); }
+      }
+    } else if (mode === 'echo') {
+      idle += dt;
+      if (idle > 20) { mode = 'free'; showBubble(''); }
+    } else if (mode === 'chorus' || mode === 'egg') {
+      timer -= dt;
+      if (mode === 'chorus' && Math.random() < dt * 10) noteBurst(rand(260, 1100), 380, 1, 1);
+      if (timer <= 0) {
+        if (mode === 'egg') { const opts = [1, 3, 5, 7, 9].filter(v => v !== heartIdx); heartIdx = opts[Math.floor(Math.random() * opts.length)]; }
+        mode = 'free'; showBubble('');
+      }
+    } else if (sinceInput > 9) {
+      idleNoteT -= dt;
+      if (idleNoteT <= 0) { idleNoteT = rand(5, 8); keeperB = 1; noteBurst(KP.x + 40, KP.y - 10, 2, .8); }
+    }
+    for (const p of P) {
+      p.lit = Math.max(0, p.lit - dt * 1.5); p.squish = Math.max(0, p.squish - dt * 6); p.happy = Math.max(0, p.happy - dt);
+      p.flap = Math.max(0, p.flap - dt * 2.5);
+      if (p.hintT > 0) p.hintT -= dt;
+      const wantHint = (mode === 'demo' && p.hintT > 0) || (mode === 'echo' && phrase && p.i === phrase[expect] && idle > 1.3) ? 1 : 0;
+      p.hint = lerp(p.hint, wantHint, Math.min(1, dt * 8));
+      p.blink -= dt; if (p.blink <= 0) { p.blinkA = .14; p.blink = rand(2.5, 6); } p.blinkA = Math.max(0, p.blinkA - dt);
+      if (p.jumpT > -5) { p.jumpT += dt; if (p.jumpT > .45) p.jumpT = -9; }
+    }
+    for (const n of notes) { n.life += dt; n.x += n.vx * dt + Math.sin(n.life * 5) * .4; n.y += n.vy * dt; n.vy *= Math.pow(.6, dt); }
+    notes = notes.filter(n => n.life < n.max);
+    for (const h of hearts) { h.life += dt; if (h.life > 0) { h.y += h.vy * dt; h.x += Math.sin(h.life * 4) * .6 + h.vx * dt; } }
+    hearts = hearts.filter(h => h.life < 2.2);
+    for (const s of stars) s.life += dt; stars = stars.filter(s => s.life < .8);
+    for (const s of snow) { s.y += s.s * dt; s.x += Math.sin(t * .6 + s.p) * .2; if (s.y > 600) { s.y = 34; s.x = rand(40, 1160); } }
+    // 聲音波形
+    let data = null;
+    if (AU.analyser && bus) { if (!freq) freq = new Uint8Array(AU.analyser.frequencyBinCount); AU.analyser.getByteFrequencyData(freq); data = freq; }
+    for (let b = 0; b < 48; b++) {
+      let v = 0;
+      if (data) { const bin = Math.floor(3 + Math.pow(b / 47, 1.5) * 70); v = (data[bin] + data[bin + 1]) / 510; }
+      const tgt = 4 + v * 46 + Math.sin(t * 2.2 + b * .7) * 1.5;
+      bars[b] = lerp(bars[b], tgt, Math.min(1, dt * 14));
+    }
+  }
+
+  /* ---- 繪製 ---- */
+  function mix(a, b, k) {
+    const pa = [1, 3, 5].map(i => parseInt(a.substr(i, 2), 16)), pb = [1, 3, 5].map(i => parseInt(b.substr(i, 2), 16));
+    return `rgb(${pa.map((v, i) => Math.round(v + (pb[i] - v) * clamp(k, 0, 1))).join(',')})`;
+  }
+  function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  function heart(g, x, y, s, col) {
+    g.save(); g.translate(x, y); g.scale(s, s); g.fillStyle = col;
+    g.beginPath(); g.moveTo(0, 4); g.bezierCurveTo(-9, -3, -6, -10, 0, -5); g.bezierCurveTo(6, -10, 9, -3, 0, 4); g.fill(); g.restore();
+  }
+  function noteGlyph(g, n) {
+    const a = Math.min(1, (n.max - n.life) * 2.5, n.life * 6);
+    g.save(); g.globalAlpha = a; g.translate(n.x, n.y); g.rotate(n.rot); g.scale(n.s, n.s);
+    g.fillStyle = n.col; g.strokeStyle = n.col; g.lineWidth = 3; g.lineCap = 'round';
+    g.beginPath(); g.ellipse(-5, 8, 7, 5.2, -.4, 0, TAU); g.fill();
+    g.beginPath(); g.moveTo(1, 7); g.lineTo(1, -16); g.stroke();
+    if (n.dbl) { g.beginPath(); g.ellipse(17, 4, 7, 5.2, -.4, 0, TAU); g.fill(); g.beginPath(); g.moveTo(23, 3); g.lineTo(23, -20); g.stroke(); g.lineWidth = 5; g.beginPath(); g.moveTo(1, -15); g.lineTo(23, -19); g.stroke(); }
+    else { g.beginPath(); g.moveTo(1, -16); g.quadraticCurveTo(10, -10, 9, -2); g.stroke(); }
+    g.restore();
+  }
+  function buildStatic() {
+    staticL = layer(); const g = staticL.g;
+    g.fillStyle = '#E4F1FA'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#C9DCEA'; g.fillRect(0, 640, W, H - 640);
+    for (const x of [380, 640, 900]) { g.fillStyle = 'rgba(255,248,214,.85)'; g.beginPath(); g.ellipse(x, 712, 80, 20, 0, 0, TAU); g.fill(); }
+    // 牆面
+    g.fillStyle = '#D1E9F8'; rr(g, 28, 24, 1144, 646, 40); g.fill();
+    g.save(); rr(g, 28, 24, 1144, 646, 40); g.clip();
+    g.fillStyle = '#E3F2FC';
+    g.beginPath(); g.moveTo(28, 470); g.lineTo(150, 380); g.lineTo(240, 430); g.lineTo(380, 330); g.lineTo(520, 420); g.lineTo(640, 350); g.lineTo(790, 440); g.lineTo(930, 340); g.lineTo(1060, 410); g.lineTo(1172, 360); g.lineTo(1172, 670); g.lineTo(28, 670); g.fill();
+    g.fillStyle = '#F2F9FE'; g.beginPath(); g.moveTo(380, 330); g.lineTo(420, 360); g.lineTo(395, 366); g.lineTo(366, 342); g.fill();
+    g.beginPath(); g.moveTo(930, 340); g.lineTo(972, 371); g.lineTo(944, 375); g.lineTo(915, 352); g.fill();
+    // 冰塊台
+    for (const p of P) if (!p.front) { g.fillStyle = '#BCDDF2'; rr(g, p.x - 40, p.feet - 4, 80, 76, 8); g.fill(); g.fillStyle = '#DDF0FB'; rr(g, p.x - 40, p.feet - 6, 80, 14, 7); g.fill(); }
+    // 冰層
+    g.fillStyle = '#F1F8FD'; g.beginPath(); g.moveTo(28, 600);
+    for (let x = 28; x <= 1172; x += 40) g.quadraticCurveTo(x + 20, 590 + (x % 80 ? 6 : -4), x + 40, 598);
+    g.lineTo(1172, 670); g.lineTo(28, 670); g.fill();
+    g.strokeStyle = '#BFDDF0'; g.lineWidth = 3; g.beginPath(); g.moveTo(40, 604); for (let x = 40; x < 1160; x += 40) g.quadraticCurveTo(x + 20, 596 + (x % 80 ? 5 : -3), x + 40, 602); g.stroke();
+    g.restore();
+    // 音色鈕面板
+    g.fillStyle = 'rgba(70,110,150,.16)'; rr(g, 66, 314, 108, 336, 30); g.fill();
+    g.fillStyle = '#FFFFFF'; rr(g, 62, 308, 108, 336, 30); g.fill();
+  }
+  function drawKeeper(g, t) {
+    const b = Math.sin(keeperB * Math.PI) * 6, x = KP.x, y = KP.y - b;
+    g.save();
+    if (mode === 'free') { g.globalAlpha = .55 + Math.sin(t * 3) * .2; g.fillStyle = '#3B5A7A'; g.font = '500 16px "Noto Sans TC","PingFang TC",sans-serif'; g.textAlign = 'center'; g.fillText('點保育員，一起唱', x, KP.y + 112); g.globalAlpha = 1; }
+    g.fillStyle = '#34495E'; rr(g, x - 17, y + 40, 13, 42, 6); g.fill(); rr(g, x + 4, y + 40, 13, 42, 6); g.fill();
+    g.fillStyle = '#5A8FD8'; rr(g, x - 28, y - 8, 56, 58, 20); g.fill();
+    g.fillStyle = '#EF5B5B'; rr(g, x - 22, y - 10, 44, 12, 6); g.fill(); rr(g, x + 6, y - 2, 11, 26, 5); g.fill();
+    g.fillStyle = '#F6D2B4'; g.beginPath(); g.arc(x, y - 32, 23, 0, TAU); g.fill();
+    g.fillStyle = '#4A3428'; g.beginPath(); g.arc(x, y - 36, 24, Math.PI * 1.02, Math.PI * 1.98); g.lineTo(x + 22, y - 34); g.quadraticCurveTo(x, y - 42, x - 22, y - 34); g.fill();
+    g.fillStyle = '#2E2A28'; g.beginPath(); g.arc(x - 8, y - 28, 2.6, 0, TAU); g.arc(x + 8, y - 28, 2.6, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,140,150,.5)'; g.beginPath(); g.arc(x - 14, y - 21, 4, 0, TAU); g.arc(x + 14, y - 21, 4, 0, TAU); g.fill();
+    // 口風琴
+    g.strokeStyle = '#EF5B5B'; g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.moveTo(x, y - 18); g.quadraticCurveTo(x - 30, y + 2, x - 46, y + 18); g.stroke();
+    g.fillStyle = '#FFFFFF'; rr(g, x - 54, y + 12, 108, 28, 9); g.fill(); g.strokeStyle = '#2B2B33'; g.lineWidth = 2.5; g.stroke();
+    g.fillStyle = '#2B2B33';
+    for (let k = 0; k < 9; k++) if (k % 3 !== 2) { rr(g, x - 42 + k * 10.5, y + 15, 6, 12, 2); g.fill(); }
+    g.restore();
+  }
+  function drawHeli(g, t) {
+    const x = 1030 + Math.sin(t * .25) * 55, y = 104 + Math.sin(t * .9) * 8;
+    g.save(); g.translate(x, y); g.rotate(Math.sin(t * .25 + 1.5) * .06);
+    g.fillStyle = '#EF5B5B'; g.beginPath(); g.ellipse(0, 0, 30, 19, 0, 0, TAU); g.fill();
+    rr(g, 20, -5, 52, 9, 4); g.fill(); rr(g, 66, -15, 8, 22, 4); g.fill();
+    g.fillStyle = '#fff'; rr(g, -18, -9, 20, 11, 5); g.fill();
+    g.strokeStyle = '#7A2E2E'; g.lineWidth = 4; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(0, -18); g.lineTo(0, -27); g.stroke();
+    const w = 48 * Math.abs(Math.cos(t * 22)); g.beginPath(); g.moveTo(-w, -28); g.lineTo(w, -28); g.stroke();
+    g.beginPath(); g.moveTo(-20, 24); g.lineTo(20, 24); g.moveTo(-10, 18); g.lineTo(-12, 24); g.moveTo(10, 18); g.lineTo(12, 24); g.stroke();
+    g.restore();
+  }
+  function drawPenguin(g, p, t) {
+    const hh = p.h / 2, hw = p.w;
+    const jy = p.jumpT >= 0 ? -Math.sin(Math.min(1, p.jumpT / .45) * Math.PI) * 24 : 0;
+    const sway = Math.sin(t * 1.2 + p.sway) * .025 + (p.happy > 0 ? Math.sin(t * 13 + p.i) * .035 * Math.min(1, p.happy) : 0);
+    g.save(); g.translate(p.x, p.feet + jy); g.rotate(sway); g.scale(1 + p.squish * .04, 1 - p.squish * .06); g.translate(0, -hh);
+    if (p.lit > .01) { g.globalAlpha = p.lit * .6; g.fillStyle = '#FFF2A6'; g.beginPath(); g.ellipse(0, 6, hw + 22, hh + 18, 0, 0, TAU); g.fill(); g.globalAlpha = 1; }
+    if (p.hint > .01) { g.save(); g.globalAlpha = p.hint; g.setLineDash([9, 8]); g.lineDashOffset = -t * 24; g.strokeStyle = '#3F7FD8'; g.lineWidth = 4; g.beginPath(); g.ellipse(0, 6, hw + 15, hh + 13, 0, 0, TAU); g.stroke(); g.restore(); }
+    g.fillStyle = '#FF9F45'; g.beginPath(); g.ellipse(-16, hh - 2, 15, 6.5, 0, 0, TAU); g.ellipse(16, hh - 2, 15, 6.5, 0, 0, TAU); g.fill();
+    const fl = Math.sin(p.flap * Math.PI * 3) * p.flap * .5;
+    g.fillStyle = '#24242C';
+    g.save(); g.translate(-hw + 7, 4); g.rotate(.32 + fl); g.beginPath(); g.ellipse(0, 18, 10, 36, 0, 0, TAU); g.fill(); g.restore();
+    g.save(); g.translate(hw - 7, 4); g.rotate(-.32 - fl); g.beginPath(); g.ellipse(0, 18, 10, 36, 0, 0, TAU); g.fill(); g.restore();
+    g.fillStyle = '#2B2B33';
+    g.beginPath(); g.moveTo(0, -hh); g.bezierCurveTo(hw * .78, -hh, hw, -hh * .25, hw, hh * .3); g.bezierCurveTo(hw, hh * .86, hw * .55, hh, 0, hh);
+    g.bezierCurveTo(-hw * .55, hh, -hw, hh * .86, -hw, hh * .3); g.bezierCurveTo(-hw, -hh * .25, -hw * .78, -hh, 0, -hh); g.fill();
+    if (p.front) {
+      g.fillStyle = '#FFFFFF'; g.beginPath(); g.ellipse(0, -hh * .5, hw * .64, hh * .26, 0, 0, TAU); g.fill();
+      g.fillStyle = mix('#FFFFFF', '#FFE27A', p.lit * 1.2); g.beginPath(); g.ellipse(0, hh * .24, hw * .72, hh * .6 * (1 - p.squish * .05), 0, 0, TAU); g.fill();
+      const ey = -hh * .53;
+      if (p.happy > 0) { g.strokeStyle = '#2B2B33'; g.lineWidth = 3.2; g.lineCap = 'round'; for (const ex of [-12, 12]) { g.beginPath(); g.arc(ex, ey + 3, 5, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); } g.fillStyle = 'rgba(255,130,150,.55)'; g.beginPath(); g.arc(-20, ey + 10, 5, 0, TAU); g.arc(20, ey + 10, 5, 0, TAU); g.fill(); }
+      else if (p.blinkA > 0) { g.strokeStyle = '#2B2B33'; g.lineWidth = 3; g.beginPath(); g.moveTo(-16, ey); g.lineTo(-8, ey); g.moveTo(8, ey); g.lineTo(16, ey); g.stroke(); }
+      else { g.fillStyle = '#2B2B33'; g.beginPath(); g.arc(-12, ey, 4.6, 0, TAU); g.arc(12, ey, 4.6, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(-10.5, ey - 1.6, 1.4, 0, TAU); g.arc(13.5, ey - 1.6, 1.4, 0, TAU); g.fill(); }
+      g.fillStyle = '#FF9F45'; g.beginPath(); g.moveTo(-8, ey + 7); g.lineTo(8, ey + 7); g.lineTo(0, ey + (p.happy > 0 ? 19 : 16)); g.closePath(); g.fill();
+    } else {
+      g.fillStyle = mix('#3A3A47', '#FFD95A', p.lit * 1.1); g.beginPath(); g.ellipse(0, -hh * .02, hw * .66, hh * .5 * (1 - p.squish * .05), 0, 0, TAU); g.fill();
+      g.fillStyle = '#2B2B33'; g.beginPath(); g.moveTo(-9, hh - 8); g.lineTo(9, hh - 8); g.lineTo(0, hh + 6); g.closePath(); g.fill();
+      if (p.i === heartIdx && mode !== 'egg') heart(g, 0, hh * .66, 1.35 + Math.sin(t * 3) * .06, '#EF5B5B');
+    }
+    g.restore();
+  }
+  function drawButtons(g, t) {
+    g.font = '500 14px "Noto Sans TC","PingFang TC",sans-serif'; g.textAlign = 'center';
+    BTN.forEach((b, k) => {
+      const sel = k === timbre, s = 1 - btnPress[k] * .08;
+      g.save(); g.translate(b.x, b.y); g.scale(s, s);
+      if (sel) { g.strokeStyle = '#FFC93C'; g.lineWidth = 6; g.beginPath(); g.arc(0, 0, 40, 0, TAU); g.stroke(); }
+      g.fillStyle = TB[k].col; g.globalAlpha = sel ? 1 : .8; g.beginPath(); g.arc(0, 0, 33, 0, TAU); g.fill(); g.globalAlpha = 1;
+      g.fillStyle = '#fff';
+      if (k === 0) { rr(g, -19, -9, 38, 18, 4); g.fill(); g.fillStyle = '#2B2B33'; for (const kx of [-13, -6, 4, 11]) { g.fillRect(kx, -9, 3.6, 10); } }
+      else if (k === 1) { g.beginPath(); g.arc(0, 0, 17, 0, TAU); g.fill(); g.fillStyle = '#2B2B33'; g.beginPath(); g.arc(-6, -3, 2.6, 0, TAU); g.arc(6, -3, 2.6, 0, TAU); g.fill(); g.fillStyle = '#FF9F45'; g.beginPath(); g.moveTo(-5, 3); g.lineTo(5, 3); g.lineTo(0, 9); g.fill(); }
+      else { g.beginPath(); g.arc(0, 0, 18, 0, TAU); g.arc(0, 0, 8, 0, TAU, true); g.fill('evenodd'); }
+      g.restore();
+      g.fillStyle = sel ? '#3B3530' : '#857A70'; g.fillText(TB[k].name, b.x, b.y + 56);
+    });
+  }
+  function draw(g, t) {
+    if (!staticL) buildStatic();
+    g.drawImage(staticL.c, 0, 0, W, H);
+    g.save(); rr(g, 28, 24, 1144, 646, 40); g.clip();
+    g.fillStyle = 'rgba(255,255,255,.85)'; for (const s of snow) { g.beginPath(); g.arc(s.x, s.y, s.r, 0, TAU); g.fill(); }
+    drawHeli(g, t);
+    drawKeeper(g, t);
+    for (const p of P) if (!p.front) drawPenguin(g, p, t);
+    for (const p of P) if (p.front) drawPenguin(g, p, t);
+    g.fillStyle = 'rgba(255,255,255,.95)'; g.lineCap = 'round';
+    for (let b = 0; b < 48; b++) { const x = 206 + b * 19.6, h = bars[b]; rr(g, x - 4, 652 - h, 8, h, 4); g.fill(); }
+    g.restore();
+    drawButtons(g, t);
+    for (const s of stars) {
+      const a = 1 - s.life / .8; g.save(); g.globalAlpha = a; g.translate(s.x, s.y - s.life * 30); g.rotate(s.life * 3); g.fillStyle = '#FFC93C';
+      g.beginPath(); for (let i = 0; i < 10; i++) { const r = (i % 2 ? 7 : 16) * (1 + s.life), an = -Math.PI / 2 + i * Math.PI / 5; g.lineTo(Math.cos(an) * r, Math.sin(an) * r); } g.closePath(); g.fill(); g.restore();
+    }
+    for (const n of notes) noteGlyph(g, n);
+    for (const h of hearts) if (h.life > 0) { g.save(); g.globalAlpha = Math.min(1, (2.2 - h.life) * 2); heart(g, h.x, h.y, h.s * 1.6, '#EF5B5B'); g.restore(); }
+  }
+  function demo() {
+    phrase = PHRASES[2]; mode = 'echo'; expect = 1; idle = 3; showBubble('換你拍！照著拍回去');
+    P[0].lit = .9; P[3].lit = 1; P[3].happy = 1; P[6].lit = .7; P[6].happy = 1;
+    noteBurst(P[3].x, P[3].feet - P[3].h - 6, 3, 1.1); noteBurst(P[6].x, P[6].feet - P[6].h - 6, 2, 1);
+    for (const n of notes) { n.life = .35; n.y -= 40; }
+    P[2].hint = 1; sinceInput = 0;
+    for (const p of P) { p.lit += 0; }
+    const keep = P.map(p => [p.lit, p.happy, p.hint]);
+    for (let i = 0; i < 6; i++) { update(1 / 60, 10 + i / 60); }
+    P.forEach((p, i) => { [p.lit, p.happy, p.hint] = keep[i]; });
+  }
+  return {
+    bg: '#E4F1FA', hint: '拍企鵝會唱歌．左邊換音色．點保育員跟著唱．找愛心企鵝',
+    enter() { ui.hidden = false; if (!P.length) { reset(); if (DEMO) demo(); } if (AU.ctx) audioStart(); },
+    exit() { ui.hidden = true; audioStop(); showBubble(''); },
+    resize() { staticL = null; },
+    reset() { reset(); }, update, draw, down, key, audioStart
+  };
+})();
+
+/* ================================================================
+   聽雨傘（下一步）
+   ================================================================ */
+const UMBRELLA = (() => {
+  const ui = $('#ui-umbrella'), status = $('#umStatus'), startEl = $('#umStart');
+  const RY = 11, FY0 = 250, FY1 = 722, PXM = 86;
+  const proj = (x, y, h = 0) => { const t = y / RY, sc = .6 + .4 * t; return { x: 600 + (x - 6.5) * PXM * sc, y: FY0 + t * (FY1 - FY0) - h * 100 * sc, sc }; };
+  const unproj = (sx, sy) => { const t = clamp((sy - FY0) / (FY1 - FY0), 0, 1), sc = .6 + .4 * t; return { x: 6.5 + (sx - 600) / (PXM * sc), y: t * RY }; };
+  const U = [
+    { key: 'bridge', name: '吊橋', x: 5.1, y: 2.1, col: '#7E9A57', light: '#E9F3CC', floor: 'slats', desc: '雨打在木板和繩索上，有風聲、木頭嘎吱、山谷鳥叫' },
+    { key: 'fall', name: '瀑布', x: 10.9, y: 3.9, col: '#4D8DB5', light: '#DCEFFA', floor: 'dots', desc: '雨落進水潭，瀑布一直轟隆隆' },
+    { key: 'cave', name: '山洞', x: 2.0, y: 5.4, col: '#5E6066', light: '#E4E4EA', floor: 'carpet', desc: '洞口滴水，水滴在洞裡回響。點一下光圈拍拍手，聽聽回音' },
+    { key: 'red', name: '紅傘', x: 6.5, y: 5.5, col: '#D93A2F', light: '#FFE3D8', floor: 'plain', desc: '' },
+    { key: 'house', name: '老屋', x: 4.1, y: 8.9, col: '#C9A256', light: '#FCEECB', floor: 'brick', desc: '雨從屋簷滴進水桶，滴答滴答，時快時慢' },
+    { key: 'train', name: '火車', x: 8.4, y: 8.6, col: '#E6DDC8', light: '#FFF7E2', floor: 'ties', desc: '雨打在月台鐵皮屋頂，火車由遠而近呼嘯而過，腳底會震動' }
+  ];
+  const RED = 3, TRAIN = 5, CAVE = 2;
+  const RED_TXT = ['', '1 人：小雨，雨滴一顆一顆打在傘上', '2 人：中雨，雨聲密起來', '3 人以上：大雨嘩啦啦，還有遠方悶悶的雷聲'];
+  const SHIRTS = ['#F2C14E', '#7CC08A', '#EE8A6B', '#8FB3E8', '#C4A57E'];
+  let figs = [], listener = 0, drag = null, staticL = null, bus = null, scenes = [], gRain = null, started = false;
+  let trainT = 4, trainOn = -1, ripples = [], echoes = [], thunderNext = 0, redLevel = 0, holdU = -1, holdT = 0, lastU = -2, curU = -1;
+
+  function reset() {
+    figs = [[11.7, 9.5, false], [12.15, 10.15, false], [11.05, 10.25, false], [12.25, 8.85, false], [11.35, 8.75, true]]
+      .map(([x, y, adult], i) => ({ x, y, adult, shirt: SHIRTS[i], bob: rand(0, TAU) }));
+    listener = 0; drag = null; trainOn = -1; ripples = []; echoes = [];
+  }
+  function inU(f, k) { const u = U[k]; return hyp(f.x - u.x, f.y - u.y) < (k === RED ? .95 : .62); }
+  function umbOf(f) { for (let k = 0; k < U.length; k++) if (inU(f, k)) return k; return -1; }
+  function redCount() { return figs.filter(f => inU(f, RED)).length; }
+
+  /* ---------- 聲音 ---------- */
+  function stream(rate, fire) { return { next: 0, rate, fire }; }
+  function makeIR(c, dur, decay) {
+    const len = Math.floor(c.sampleRate * dur), b = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+    return b;
+  }
+  function creak(o, t) {
+    const c = AU.ctx, os = c.createOscillator(); os.type = 'sawtooth';
+    os.frequency.setValueAtTime(95, t); os.frequency.linearRampToValueAtTime(140, t + .35); os.frequency.linearRampToValueAtTime(104, t + .75);
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 650; bp.Q.value = 5;
+    const g = c.createGain(), tr = c.createOscillator(), tg = c.createGain(); tr.frequency.value = 17; tg.gain.value = .5; tr.connect(tg);
+    const am = c.createGain(); am.gain.value = .5; tg.connect(am.gain);
+    os.connect(bp); bp.connect(am); am.connect(g); g.connect(o);
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.07, t + .1); g.gain.setValueAtTime(.07, t + .55); g.gain.exponentialRampToValueAtTime(.0001, t + .8);
+    os.start(t); tr.start(t); os.stop(t + .85); tr.stop(t + .85);
+  }
+  function rumble(o, t, dur, peak, f, pan) {
+    const c = AU.ctx, s = c.createBufferSource(); s.buffer = AU.brown; s.loop = true;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f;
+    const g = c.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + dur * .35); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    s.connect(lp); lp.connect(g); g.connect(panNode(o, pan)); s.start(t, rand(0, 2)); s.stop(t + dur + .1);
+  }
+  function trainSound(o, t0) {
+    const c = AU.ctx, dur = 7.5;
+    let out = o, pn = null;
+    if (c.createStereoPanner) { pn = c.createStereoPanner(); pn.pan.setValueAtTime(-1, t0); pn.pan.linearRampToValueAtTime(1, t0 + dur); pn.connect(o); out = pn; }
+    const s = c.createBufferSource(); s.buffer = AU.brown; s.loop = true;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 240;
+    const g = c.createGain(); g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(.6, t0 + dur * .5); g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    s.connect(lp); lp.connect(g); g.connect(out); s.start(t0, rand(0, 2)); s.stop(t0 + dur + .1);
+    for (let k = 0; k < 15; k++) {
+      const tt = t0 + 1.1 + k * .36, env = Math.max(.05, Math.sin(Math.PI * (tt - t0) / dur));
+      hit(out, tt, { ft: 'lowpass', f: 1200, d: .05, g: .32 * env }); hit(out, tt + .12, { ft: 'lowpass', f: 950, d: .05, g: .26 * env });
+    }
+    for (const f of [330, 415]) tone(out, t0 + .6, { f, type: 'sawtooth', a: .08, d: 1.1, g: .03, lp: 1400 });
+  }
+  function buildScenes() {
+    const c = AU.ctx;
+    scenes = U.map((u, idx) => { const g = c.createGain(); g.gain.value = 0; g.connect(bus); return { u, idx, g, level: 0, streams: [], beds: [] }; });
+    const S = k => scenes[U.findIndex(u => u.key === k)];
+    { // 吊橋
+      const s = S('bridge'), o = s.g;
+      const wind = bed(o, { noise: 'brown', ft: 'bandpass', f: 380, q: .8, g: .2 });
+      s.beds.push(wind, lfo(wind.g.gain, .09, .1), bed(o, { noise: 'pink', f: 2500, g: .05 }));
+      const gust = bed(o, { noise: 'pink', ft: 'bandpass', f: 600, q: .6, g: .0001 }); s.beds.push(gust);
+      s.streams.push(stream(22, t => hit(o, t, { f: rand(500, 1300), q: 7, d: rand(.03, .06), g: rand(.06, .18), pan: rand(-.6, .6) })));
+      s.streams.push(stream(1 / 5.5, t => creak(o, t)));
+      s.streams.push(stream(1 / 7, t => { const n = 2 + Math.floor(rand(0, 2)), p = rand(-.7, .7); for (let i = 0; i < n; i++) tone(o, t + i * .13, { f: rand(2500, 2900), f2: rand(3800, 4300), glide: .07, d: .08, g: .035, pan: p }); }));
+      s.streams.push(stream(1 / 13, t => { gust.g.gain.setTargetAtTime(.14, t, .6); gust.g.gain.setTargetAtTime(.0001, t + 2, .9); }));
+    }
+    { // 瀑布
+      const s = S('fall'), o = s.g;
+      s.beds.push(bed(o, { noise: 'brown', f: 800, g: .5 }), bed(o, { noise: 'white', ft: 'bandpass', f: 1800, q: .5, g: .045 }));
+      s.streams.push(stream(() => 8 + 7 * Math.sin(AU.t * .4), t => { const f = rand(800, 1600); tone(o, t, { f, f2: f * 1.6, glide: .03, d: .06, g: .05, pan: rand(-.6, .6) }); }));
+    }
+    { // 山洞
+      const s = S('cave'), o = s.g;
+      const rev = c.createConvolver(); rev.buffer = makeIR(c, 3.2, 2.6); const wet = c.createGain(); wet.gain.value = .75; rev.connect(wet); wet.connect(o);
+      const dl = c.createDelay(1); dl.delayTime.value = .33; const fb = c.createGain(); fb.gain.value = .42; dl.connect(fb); fb.connect(dl); dl.connect(rev); dl.connect(o);
+      s.rev = rev; s.dl = dl;
+      s.beds.push(bed(o, { noise: 'brown', f: 160, g: .06 }), bed(rev, { noise: 'pink', f: 900, g: .03 }));
+      s.streams.push(stream(1.4, t => { const f = rand(1100, 2300); tone(rev, t, { f, f2: f * .55, glide: .04, d: .14, g: .2, pan: rand(-.5, .5) }); tone(o, t, { f, f2: f * .55, glide: .04, d: .1, g: .05 }); }));
+      s.clap = t => { hit(rev, t, { f: 1400, q: .9, d: .05, g: .55 }); hit(dl, t, { f: 1400, q: .9, d: .05, g: .4 }); hit(o, t, { f: 1500, q: .9, d: .04, g: .3 }); };
+    }
+    { // 紅傘
+      const s = S('red'), o = s.g;
+      const rb = bed(o, { noise: 'pink', ft: 'bandpass', f: 2200, q: .6, g: .0001 }); s.beds.push(rb); s.rain = rb;
+      s.streams.push(stream(() => [0, 6, 26, 70][redLevel], t => hit(o, t, { f: rand(1400, 3800), q: 3, d: .03, g: redLevel === 1 ? rand(.2, .3) : rand(.08, .22), pan: rand(-.5, .5) })));
+    }
+    { // 老屋
+      const s = S('house'), o = s.g;
+      s.beds.push(bed(o, { noise: 'pink', f: 1800, g: .04 }));
+      s.streams.push(stream(() => 1 / (.25 + .35 * (.5 + .5 * Math.sin(AU.t * .3))), t => { const f = rand(380, 520); tone(o, t, { f, f2: f * .75, glide: .05, d: .2, g: .2, pan: -.2 }); hit(o, t, { f: 900, q: 3, d: .02, g: .05, pan: -.2 }); }));
+      s.streams.push(stream(12, t => hit(o, t, { f: rand(1500, 2600), q: 4, d: .025, g: .06, pan: rand(0, .7) })));
+    }
+    { // 火車
+      const s = S('train'), o = s.g;
+      s.beds.push(bed(o, { noise: 'white', ft: 'highpass', f: 3000, g: .035 }));
+      s.streams.push(stream(30, t => { hit(o, t, { f: rand(2500, 5500), q: 12, d: .02, g: .12, pan: rand(-.6, .6) }); if (Math.random() < .3) tone(o, t, { f: rand(2000, 3600), d: .06, g: .02 }); }));
+      s.train = t => trainSound(o, t);
+    }
+    // 全場微弱雨聲
+    gRain = c.createGain(); gRain.gain.value = .9; gRain.connect(bus);
+    bed(gRain, { noise: 'pink', f: 2200, g: .05 }); bed(gRain, { noise: 'white', ft: 'highpass', f: 5000, g: .006 });
+    gRain.drops = stream(6, t => hit(gRain, t, { f: rand(1500, 4000), q: 2, d: .02, g: .025, pan: rand(-.8, .8) }));
+  }
+  function audioStart() {
+    if (!AU.ctx || bus || !started) return;
+    bus = AU.bus(1); buildScenes();
+  }
+  function audioStop() { if (!bus) return; AU.closeBus(bus); const ss = scenes; setTimeout(() => ss.forEach(s => s.beds.forEach(b => { try { b.stop(); } catch (_) {} })), 1000); bus = null; scenes = []; }
+  function runStream(st, now, ahead) {
+    if (st.next < now - .2) st.next = now;
+    let guard = 0;
+    while (st.next < ahead && guard++ < 40) {
+      st.fire(Math.max(st.next, now));
+      const r = typeof st.rate === 'function' ? st.rate() : st.rate;
+      st.next += r > 0 ? -Math.log(1 - Math.random()) / r : 1;
+    }
+  }
+  function audioTick(dt) {
+    if (!bus) return;
+    const now = AU.t, ahead = now + .12;
+    scenes.forEach((s, k) => {
+      const target = k === curU || k === holdU ? 1 : 0;
+      if ((target > 0) !== (s.tg > 0)) { s.g.gain.setTargetAtTime(target, now, target ? .45 : .7); s.tg = target; }
+      s.level = lerp(s.level, target, Math.min(1, dt * (target ? 1.6 : 1.1)));
+      if (s.level > .02) for (const st of s.streams) runStream(st, now, ahead); else for (const st of s.streams) st.next = now;
+    });
+    const red = scenes[RED];
+    if (red && red.lastLevel !== redLevel) { red.rain.g.gain.setTargetAtTime([.0001, .03, .12, .32][redLevel], now, 1.2); red.lastLevel = redLevel; if (redLevel === 3) thunderNext = Math.max(thunderNext, now + 2.5); }
+    if (red && redLevel === 3 && now > thunderNext && red.level > .3) { rumble(red.g, now, 6, .5, 140, rand(-.6, .6)); rumble(red.g, now + .3, 5, .35, 80, 0); thunderNext = now + 30 + rand(0, 6); }
+    gRain.gain.setTargetAtTime(curU >= 0 ? .6 : 1, now, .5);
+    runStream(gRain.drops, now, ahead);
+  }
+
+  /* ---------- 互動 ---------- */
+  function figBox(f) { const p = proj(f.x, f.y), hgt = (f.adult ? 1.62 : 1.06) * 100 * p.sc; return { x0: p.x - 26 * p.sc - 6, x1: p.x + 26 * p.sc + 6, y0: p.y - hgt - 6, y1: p.y + 8, p }; }
+  function down(pt, e) {
+    if (!started) return;
+    const order = figs.map((f, i) => i).sort((a, b) => figs[b].y - figs[a].y);
+    for (const i of order) {
+      const b = figBox(figs[i]);
+      if (pt.x > b.x0 && pt.x < b.x1 && pt.y > b.y0 && pt.y < b.y1) {
+        listener = i; drag = { i, id: e.pointerId, dx: b.p.x - pt.x, dy: b.p.y - pt.y };
+        return;
+      }
+    }
+    for (let k = 0; k < U.length; k++) {
+      const u = U[k], p = proj(u.x, u.y), rx = .62 * PXM * p.sc;
+      if (((pt.x - p.x) / rx) ** 2 + ((pt.y - p.y) / (rx * .36)) ** 2 < 1.4) {
+        if (k === CAVE && umbOf(figs[listener]) === CAVE) {
+          const s = scenes[CAVE]; if (s && s.clap) s.clap(AU.t);
+          echoes.push({ x: p.x, y: p.y - 70 * p.sc, t: 0 });
+        } else ripples.push({ k, t: 0 });
+        return;
+      }
+    }
+  }
+  function move(pt, e) {
+    if (!drag || drag.id !== e.pointerId) return;
+    const r = unproj(pt.x + drag.dx, pt.y + drag.dy), f = figs[drag.i];
+    f.x = clamp(r.x, .4, 12.6); f.y = clamp(r.y, .6, 10.8);
+  }
+  function up(pt, e) { if (drag && drag.id === e.pointerId) drag = null; }
+
+  /* ---------- 更新 ---------- */
+  function update(dt, t) {
+    const L = figs[listener], u = umbOf(L);
+    if (u !== curU) { if (curU >= 0) { holdU = curU; holdT = 2.5; } curU = u; if (curU === holdU) holdU = -1; if (u === TRAIN) trainT = Math.min(trainT, 3.5); }
+    if (holdU >= 0) { holdT -= dt; if (holdT <= 0) holdU = -1; }
+    const rc = redCount(); redLevel = rc >= 3 ? 3 : rc;
+    // 火車：有人在火車傘下才開
+    const trainBusy = figs.some(f => inU(f, TRAIN));
+    if (trainBusy) {
+      trainT -= dt;
+      if (trainT <= 0) { trainT = 24; trainOn = 0; const s = scenes[TRAIN]; if (s && s.train && (curU === TRAIN)) s.train(AU.t); if (curU === TRAIN && navigator.vibrate) { try { navigator.vibrate([0, 1600, 120, 400, 80, 2600, 120, 1200]); } catch (_) {} } }
+    } else trainT = Math.max(trainT, 4);
+    if (trainOn >= 0) { trainOn += dt; if (trainOn > 7.5) trainOn = -1; }
+    for (const r of ripples) r.t += dt; ripples = ripples.filter(r => r.t < 1.2);
+    for (const e of echoes) e.t += dt; echoes = echoes.filter(e => e.t < 2.4);
+    audioTick(dt);
+    // 狀態文字
+    const key = curU + ':' + redLevel;
+    if (key !== lastU) {
+      lastU = key;
+      let html;
+      if (curU < 0) html = '<b>傘與傘之間</b><span>只聽得到微弱的雨聲。把小朋友拖到傘下的光圈裡。</span>';
+      else if (curU === RED) html = `<b style="color:#FF8A7A">紅傘下</b><span>${RED_TXT[redLevel]}${redLevel < 3 ? '。再拖一個人進來，雨會變大' : ''}</span>`;
+      else html = `<b>${U[curU].name}傘下</b><span>${U[curU].desc}</span>`;
+      status.innerHTML = '<i></i>' + html;
+    }
+  }
+
+  /* ---------- 繪製 ---------- */
+  function buildStatic() {
+    staticL = layer(); const g = staticL.g;
+    const c0 = proj(0, 0), c1 = proj(13, 0), c2 = proj(13, 11), c3 = proj(0, 11);
+    g.fillStyle = '#1E1D26'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#272631'; g.fillRect(c0.x, 0, c1.x - c0.x, c0.y);
+    g.fillStyle = '#23222C'; g.beginPath(); g.moveTo(0, 0); g.lineTo(c0.x, 0); g.lineTo(c0.x, c0.y); g.lineTo(c3.x, c3.y); g.lineTo(0, c3.y); g.fill();
+    g.beginPath(); g.moveTo(W, 0); g.lineTo(c1.x, 0); g.lineTo(c1.x, c1.y); g.lineTo(c2.x, c2.y); g.lineTo(W, c2.y); g.fill();
+    g.fillStyle = '#302F3B'; g.beginPath(); g.moveTo(c0.x, c0.y); g.lineTo(c1.x, c1.y); g.lineTo(c2.x, c2.y); g.lineTo(c3.x, c3.y); g.fill();
+    g.fillStyle = '#2B2A35'; g.fillRect(0, c3.y, W, H - c3.y);
+    // 入口布簾（右牆）
+    const e0 = proj(13, 8.1), e1 = proj(13, 9.9);
+    const wx = t => lerp(c1.x, W, 1), wallX = y => lerp(c1.x, c2.x, (y - c1.y) / (c2.y - c1.y));
+    g.fillStyle = '#6B5242'; g.beginPath(); g.moveTo(wallX(e0.y), e0.y); g.lineTo(wallX(e1.y), e1.y); g.lineTo(wallX(e1.y) + 30, e1.y - 240); g.lineTo(wallX(e0.y) + 26, e0.y - 210); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 3; for (let k = 1; k < 5; k++) { const yy = lerp(e0.y, e1.y, k / 5), xx = wallX(yy); g.beginPath(); g.moveTo(xx, yy); g.lineTo(xx + 28, yy - 225); g.stroke(); }
+    // 地面引導光
+    g.fillStyle = 'rgba(255,214,150,.18)';
+    for (let k = 0; k <= 12; k++) { const a = proj(.15, k * .9 + .3), b = proj(12.85, k * .9 + .3); g.beginPath(); g.ellipse(a.x + 6, a.y, 7 * a.sc, 3 * a.sc, 0, 0, TAU); g.ellipse(b.x - 6, b.y, 7 * b.sc, 3 * b.sc, 0, 0, TAU); g.fill(); }
+    // 地面上的光圈與觸感地墊
+    U.forEach((u, k) => {
+      const p = proj(u.x, u.y), rx = .5 * PXM * p.sc, ry = rx * .36;
+      g.save();
+      g.fillStyle = u.light; g.globalAlpha = .62; g.beginPath(); g.ellipse(p.x, p.y, rx, ry, 0, 0, TAU); g.fill();
+      g.beginPath(); g.ellipse(p.x, p.y, rx, ry, 0, 0, TAU); g.clip();
+      g.globalAlpha = .28; g.strokeStyle = g.fillStyle = '#5A4A3A'; g.lineWidth = 2;
+      if (u.floor === 'slats') for (let i = -6; i <= 6; i++) { g.beginPath(); g.moveTo(p.x + i * rx / 6, p.y - ry); g.lineTo(p.x + i * rx / 6, p.y + ry); g.stroke(); }
+      else if (u.floor === 'dots') for (let i = -5; i <= 5; i++) for (let j = -3; j <= 3; j++) { g.beginPath(); g.ellipse(p.x + i * rx / 5 + (j % 2) * rx / 10, p.y + j * ry / 3, 2.4 * p.sc, 1.2 * p.sc, 0, 0, TAU); g.fill(); }
+      else if (u.floor === 'carpet') { g.globalAlpha = .35; g.fillStyle = '#3A3A44'; g.fillRect(p.x - rx, p.y - ry, rx * 2, ry * 2); }
+      else if (u.floor === 'ties') for (let j = -3; j <= 3; j++) { g.fillRect(p.x - rx, p.y + j * ry / 3 - 2 * p.sc, rx * 2, 4 * p.sc); }
+      else if (u.floor === 'brick') for (let j = -3; j <= 3; j++) { g.beginPath(); g.moveTo(p.x - rx, p.y + j * ry / 3); g.lineTo(p.x + rx, p.y + j * ry / 3); g.stroke(); for (let i = -6; i <= 6; i++) { const xx = p.x + (i + (j % 2) * .5) * rx / 3; g.beginPath(); g.moveTo(xx, p.y + j * ry / 3); g.lineTo(xx, p.y + (j + 1) * ry / 3); g.stroke(); } }
+      g.restore();
+      g.fillStyle = 'rgba(244,235,221,.55)'; g.font = `500 ${Math.round(15 * p.sc + 3)}px "Noto Sans TC","PingFang TC",sans-serif`; g.textAlign = 'center';
+      g.fillText(u.name, p.x, p.y + ry + 22 * p.sc);
+    });
+  }
+  function drawCone(g, u, k, t, act) {
+    const p = proj(u.x, u.y), rim = proj(u.x, u.y, 1.9), rx = .5 * PXM * p.sc, ry = rx * .36;
+    let jit = 0; if (k === TRAIN && trainOn >= 0) jit = Math.sin(t * 60) * 2.2 * Math.sin(Math.PI * trainOn / 7.5);
+    g.save(); g.globalAlpha = act ? .2 : .1; g.fillStyle = u.light;
+    g.beginPath(); g.moveTo(rim.x - 5, rim.y + 4); g.lineTo(rim.x + 5, rim.y + 4); g.lineTo(p.x + rx, p.y); g.lineTo(p.x - rx, p.y); g.closePath(); g.fill();
+    g.globalAlpha = act ? .5 : 0; g.beginPath(); g.ellipse(p.x + jit, p.y, rx * 1.08, ry * 1.08, 0, 0, TAU); g.fill();
+    g.restore();
+    if (k === TRAIN && trainOn >= 0) {
+      g.save(); g.strokeStyle = 'rgba(255,240,200,.6)'; g.lineWidth = 2;
+      for (let i = 0; i < 3; i++) { const rr = (1.15 + i * .18 + (t * 2 % .18)) ; g.globalAlpha = .5 - i * .14; g.beginPath(); g.ellipse(p.x, p.y, rx * rr, ry * rr, 0, 0, TAU); g.stroke(); }
+      g.restore();
+    }
+  }
+  function drawRain(g, u, k, t, n) {
+    if (!n) return;
+    const p = proj(u.x, u.y), rim = proj(u.x, u.y, 1.75), rx = .5 * PXM * p.sc, top = rim.y, bot = p.y - 4, wTop = .55 * PXM * p.sc;
+    g.save(); g.strokeStyle = 'rgba(205,226,255,.75)'; g.lineWidth = 1.6 * p.sc + .4; g.lineCap = 'round';
+    for (let i = 0; i < n; i++) {
+      const uu = ((i * .618 + k * .13) % 1) * 2 - 1, sp = .9 + ((i * .37) % 1) * .6, v = (t * sp + i * .271) % 1;
+      const y = lerp(top, bot, v), x = lerp(rim.x + uu * wTop, p.x + uu * rx, v), L = 9 * p.sc;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x - .8, y + L); g.stroke();
+    }
+    g.restore();
+    // 光圈上的雨點漣漪
+    g.save(); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.2;
+    const m = Math.ceil(n / 6);
+    for (let i = 0; i < m; i++) {
+      const ph = (t * .9 + i * .37) % 1, a = i * 2.39 + Math.floor(t * .9 + i * .37) * 1.7, d = ((i * .53) % 1) * .8;
+      const x = p.x + Math.cos(a) * rx * d, y = p.y + Math.sin(a) * rx * .36 * d;
+      g.globalAlpha = (1 - ph) * .8; g.beginPath(); g.ellipse(x, y, 3 + ph * 9 * p.sc, (3 + ph * 9 * p.sc) * .36, 0, 0, TAU); g.stroke();
+    }
+    g.restore();
+  }
+  function drawCanopy(g, u, k, t) {
+    const top = proj(u.x, u.y, 2.4), rim = proj(u.x, u.y, 1.9), rx = 1.0 * PXM * rim.sc, dh = rim.y - top.y;
+    g.save();
+    g.strokeStyle = 'rgba(200,200,215,.35)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(top.x, 0); g.lineTo(top.x, top.y); g.stroke();
+    g.fillStyle = u.col;
+    g.beginPath(); g.moveTo(rim.x - rx, rim.y); g.bezierCurveTo(rim.x - rx * .96, rim.y - dh * 1.9, rim.x + rx * .96, rim.y - dh * 1.9, rim.x + rx, rim.y);
+    const sc = 8; for (let i = sc; i >= 0; i--) { const x0 = rim.x - rx + (i + 1) * 2 * rx / sc, x1 = rim.x - rx + i * 2 * rx / sc; if (i < sc) g.quadraticCurveTo((x0 + x1) / 2, rim.y + rx * .1, x1, rim.y); }
+    g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.28)'; g.lineWidth = 1.4;
+    for (let i = 1; i < sc; i++) { const x1 = rim.x - rx + i * 2 * rx / sc; g.beginPath(); g.moveTo(top.x, rim.y - dh * 1.42); g.quadraticCurveTo(lerp(top.x, x1, .78), rim.y - dh * 1.05, x1, rim.y); g.stroke(); }
+    g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(rim.x, rim.y + rx * .02, rx * .98, rx * .1, 0, 0, Math.PI); g.fill();
+    g.strokeStyle = '#3A3530'; g.lineWidth = 3 * rim.sc; g.beginPath(); g.moveTo(rim.x, rim.y - 2); g.lineTo(rim.x, rim.y + 9 * rim.sc); g.stroke();
+    g.fillStyle = '#FFF2CC'; g.beginPath(); g.arc(rim.x, rim.y + 1, 3 * rim.sc, 0, TAU); g.fill();
+    g.restore();
+  }
+  function drawFig(g, f, i, t) {
+    const p = proj(f.x, f.y), s = p.sc * (f.adult ? 1.45 : 1), lit = umbOf(f) >= 0;
+    let jit = 0; if (trainOn >= 0 && inU(f, TRAIN)) jit = Math.sin(t * 55 + i) * 1.6;
+    const bob = drag && drag.i === i ? Math.sin(t * 12) * 2 : 0;
+    g.save(); g.translate(p.x + jit, p.y - bob); g.scale(s, s);
+    g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(0, 0, 20, 6, 0, 0, TAU); g.fill();
+    if (i === listener) {
+      g.save(); g.setLineDash([6, 5]); g.lineDashOffset = -t * 16; g.strokeStyle = '#FFC93C'; g.lineWidth = 2.4; g.beginPath(); g.ellipse(0, 0, 27, 9, 0, 0, TAU); g.stroke(); g.restore();
+    }
+    if (!lit && 'filter' in g) g.filter = 'brightness(0.62) saturate(0.8)';
+    g.fillStyle = '#34405A'; g.beginPath(); g.roundRect ? g.roundRect(-11, -42, 9, 42, 4) : g.rect(-11, -42, 9, 42); g.fill(); g.beginPath(); g.roundRect ? g.roundRect(2, -42, 9, 42, 4) : g.rect(2, -42, 9, 42); g.fill();
+    g.fillStyle = f.shirt; g.beginPath(); g.roundRect ? g.roundRect(-17, -80, 34, 44, 12) : g.rect(-17, -80, 34, 44); g.fill();
+    g.strokeStyle = f.shirt; g.lineWidth = 8; g.lineCap = 'round';
+    const lift = i === listener && lit ? -.5 : 0;
+    g.beginPath(); g.moveTo(-15, -72); g.lineTo(-22, -50 + lift * 40); g.moveTo(15, -72); g.lineTo(22, -50); g.stroke();
+    g.fillStyle = '#F4D0B0'; g.beginPath(); g.arc(0, -96, 17, 0, TAU); g.fill();
+    g.fillStyle = '#3A2A22'; g.beginPath(); g.arc(0, -99, 18, Math.PI * 1.02, Math.PI * 1.98); g.lineTo(17, -97); g.quadraticCurveTo(0, -104, -17, -97); g.fill();
+    g.fillStyle = '#2E2A28'; g.beginPath(); g.arc(-6, -93, 2, 0, TAU); g.arc(6, -93, 2, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,130,140,.45)'; g.beginPath(); g.arc(-10, -88, 3, 0, TAU); g.arc(10, -88, 3, 0, TAU); g.fill();
+    g.filter = 'none';
+    if (i === listener) {   // 耳機記號
+      g.strokeStyle = '#FFC93C'; g.lineWidth = 3.4; g.beginPath(); g.arc(0, -97, 21, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
+      g.fillStyle = '#FFC93C'; g.beginPath(); g.roundRect ? g.roundRect(-24, -100, 7, 13, 3) : g.rect(-24, -100, 7, 13); g.fill(); g.beginPath(); g.roundRect ? g.roundRect(17, -100, 7, 13, 3) : g.rect(17, -100, 7, 13); g.fill();
+    }
+    g.restore();
+  }
+  function draw(g, t) {
+    if (!staticL) buildStatic();
+    g.drawImage(staticL.c, 0, 0, W, H);
+    const busy = U.map((u, k) => figs.some(f => inU(f, k)));
+    U.forEach((u, k) => drawCone(g, u, k, t, busy[k]));
+    for (const r of ripples) { const u = U[r.k], p = proj(u.x, u.y), rx = .5 * PXM * p.sc; g.save(); g.globalAlpha = 1 - r.t / 1.2; g.strokeStyle = u.light; g.lineWidth = 2; g.beginPath(); g.ellipse(p.x, p.y, rx * (1 + r.t * .6), rx * .36 * (1 + r.t * .6), 0, 0, TAU); g.stroke(); g.restore(); }
+    // 全場微弱的雨
+    g.save(); g.strokeStyle = 'rgba(190,205,230,.13)'; g.lineWidth = 1.2;
+    for (let i = 0; i < 70; i++) { const x = (i * 97.3) % W, v = (t * (.35 + (i % 7) * .04) + i * .13) % 1, y = v * H; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 1, y + 10); g.stroke(); }
+    g.restore();
+    const items = [];
+    figs.forEach((f, i) => items.push({ y: f.y, d: () => drawFig(g, f, i, t) }));
+    U.forEach((u, k) => items.push({ y: u.y + .02, d: () => { const n = k === RED ? [0, 12, 26, 56][redLevel] : busy[k] ? 24 : 0; drawRain(g, u, k, t, n); drawCanopy(g, u, k, t); } }));
+    items.sort((a, b) => a.y - b.y).forEach(it => it.d());
+    for (const e of echoes) for (let i = 0; i < 4; i++) {
+      const tt = e.t - i * .33; if (tt < 0) continue;
+      g.save(); g.globalAlpha = Math.max(0, .7 - tt * .45) * (1 - i * .2); g.strokeStyle = '#E4E4EA'; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(e.x, e.y, 12 + tt * 40, -Math.PI * .8, -Math.PI * .2); g.stroke(); g.restore();
+    }
+    if (trainOn >= 0) {
+      const u = U[TRAIN], p = proj(u.x, u.y), a = Math.sin(Math.PI * trainOn / 7.5);
+      g.save(); g.globalAlpha = a; g.fillStyle = '#FFF2CC'; g.font = '700 18px "LXGW WenKai TC","PingFang TC",sans-serif'; g.textAlign = 'center';
+      g.fillText('轟隆隆…腳底在震動', p.x, p.y + 52); g.restore();
+    }
+  }
+  function begin() {
+    started = true; startEl.hidden = true; AU.ensure(); audioStart();
+  }
+  startEl.addEventListener('pointerdown', e => { e.preventDefault(); begin(); });
+  function demo() {
+    started = true; startEl.hidden = true;
+    const pos = [[6.3, 5.3], [6.85, 5.55], [6.35, 5.85], [8.25, 8.55], [8.75, 8.75]];
+    figs.forEach((f, i) => { [f.x, f.y] = pos[i]; });
+    listener = 0;
+  }
+  return {
+    bg: '#1E1D26', dark: true, hint: '把小朋友拖進傘下的光圈．紅傘下人越多雨越大',
+    enter() { ui.hidden = false; if (!figs.length) { reset(); if (DEMO) demo(); } if (AU.ctx && started) audioStart(); lastU = -2; },
+    exit() { ui.hidden = true; audioStop(); },
+    resize() { staticL = null; },
+    reset() { reset(); lastU = -2; }, update, draw, down, move, up, audioStart
+  };
+})();
+
+/* ================================================================
+   路由與主迴圈
+   ================================================================ */
+const SIMS = { pond: POND, penguin: PENGUIN, umbrella: UMBRELLA };
+function route() {
+  const key = location.hash.replace('#', '');
+  const next = SIMS[key] || null;
+  if (current && current !== next) current.exit();
+  $('#home').hidden = !!next;
+  $('#back').hidden = !next || EMBED;
+  $('#bar').style.display = next ? 'flex' : 'none';
+  current = next;
+  if (next) {
+    document.body.style.background = next.bg;
+    document.body.classList.toggle('dark', !!next.dark);
+    setHint(next.hint);
+    fit(); next.enter();
+  } else { document.body.classList.remove('dark'); document.body.style.background = '#FFF6E8'; }
+}
+addEventListener('resize', fit);
+addEventListener('hashchange', route);
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+  if (current) { current.update(dt, now / 1000); current.draw(ctx, now / 1000); }
+  requestAnimationFrame(loop);
+}
+route();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
